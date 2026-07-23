@@ -47,27 +47,7 @@
             will-change: transform;
         }
         
-        @keyframes aurora-1 {
-            0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.4; }
-            33% { transform: translate(10vw, -10vh) scale(1.2) rotate(10deg); opacity: 0.6; }
-            66% { transform: translate(-10vw, 5vh) scale(0.9) rotate(-10deg); opacity: 0.5; }
-            100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.4; }
-        }
-        @keyframes aurora-2 {
-            0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.3; }
-            33% { transform: translate(-5vw, 15vh) scale(1.1) rotate(-5deg); opacity: 0.5; }
-            66% { transform: translate(15vw, -5vh) scale(0.9) rotate(5deg); opacity: 0.4; }
-            100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.3; }
-        }
-        @keyframes aurora-3 {
-            0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.4; }
-            33% { transform: translate(5vw, 5vh) scale(1.1) rotate(5deg); opacity: 0.6; }
-            66% { transform: translate(-5vw, -10vh) scale(0.9) rotate(-5deg); opacity: 0.5; }
-            100% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.4; }
-        }
-        .animate-aurora-1 { animation: aurora-1 15s ease-in-out infinite; }
-        .animate-aurora-2 { animation: aurora-2 20s ease-in-out infinite; }
-        .animate-aurora-3 { animation: aurora-3 25s ease-in-out infinite; }
+        /* Removed CSS Aurora keyframes in favor of WebGL */
         
         @keyframes flicker {
             0%, 100% { opacity: 1; }
@@ -126,28 +106,25 @@
 <body class="bg-background text-gray-200 antialiased selection:bg-accent selection:text-background perspective-container">
 
     <!-- Parallax Landscape Background -->
-    <div id="landscape-container" class="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-[#050B14]">
-        <!-- Aurora (CSS Blobs) -->
-        <div class="absolute inset-0 mix-blend-screen pointer-events-none">
-            <div class="absolute top-[-10%] left-[20%] w-[60%] h-[40%] bg-emerald-500 rounded-full blur-[120px] animate-aurora-1"></div>
-            <div class="absolute top-[0%] right-[10%] w-[50%] h-[30%] bg-cyan-500 rounded-full blur-[100px] animate-aurora-2"></div>
-            <div class="absolute top-[10%] left-[30%] w-[70%] h-[50%] bg-indigo-500 rounded-full blur-[150px] animate-aurora-3"></div>
-        </div>
+    <div id="landscape-container" class="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-gradient-to-b from-[#02010A] via-[#0D0B1F] to-[#1F173D]">
+        
+        <!-- Aurora WebGL Canvas -->
+        <canvas id="aurora-canvas" class="absolute inset-0 z-0 mix-blend-screen opacity-80"></canvas>
         
         <!-- Stars & Constellations Canvas -->
-        <canvas id="sky-canvas" class="absolute inset-0 z-0"></canvas>
+        <canvas id="sky-canvas" class="absolute inset-0 z-0 pointer-events-none"></canvas>
 
         <!-- Mountains (Layer 1) -->
         <div class="parallax-layer absolute bottom-0 w-full h-[60vh] z-10" data-speed="0.1">
-            <svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="w-full h-full text-[#0C1322]">
+            <svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="w-full h-full text-[#151230]">
                 <path d="M0,300 L0,200 L100,100 L250,180 L400,50 L600,190 L800,80 L1000,220 L1000,300 Z" fill="currentColor"/>
-                <path d="M0,300 L0,230 L150,150 L300,210 L500,120 L750,230 L900,150 L1000,250 L1000,300 Z" fill="#0A101C" opacity="0.7"/>
+                <path d="M0,300 L0,230 L150,150 L300,210 L500,120 L750,230 L900,150 L1000,250 L1000,300 Z" fill="#1A163B" opacity="0.7"/>
             </svg>
         </div>
 
         <!-- Forest (Layer 2) -->
         <div class="parallax-layer absolute bottom-0 w-full h-[40vh] z-20" data-speed="0.25">
-            <svg viewBox="0 0 1000 200" preserveAspectRatio="none" class="w-full h-full text-[#070C15]">
+            <svg viewBox="0 0 1000 200" preserveAspectRatio="none" class="w-full h-full text-[#0D0A20]">
                 <path d="M0,200 L0,120 L20,80 L30,130 L50,70 L70,140 L90,60 L110,130 L140,50 L160,120 L190,40 L210,110 L240,60 L260,130 L290,50 L310,140 L340,70 L370,130 L400,40 L430,120 L460,60 L490,130 L530,50 L560,140 L600,60 L630,120 L660,40 L690,130 L730,70 L760,140 L800,50 L830,120 L870,40 L900,130 L940,60 L970,140 L1000,80 L1000,200 Z" fill="currentColor"/>
             </svg>
         </div>
@@ -156,7 +133,7 @@
         <div class="parallax-layer absolute bottom-0 w-full h-[25vh] z-30" data-speed="0.4">
             <svg viewBox="0 0 1000 150" preserveAspectRatio="none" class="w-full h-full">
                 <!-- Left Hill -->
-                <path d="M0,150 L0,50 Q200,-20 450,80 L450,150 Z" fill="#05080E"/>
+                <path d="M0,150 L0,50 Q200,-20 450,80 L450,150 Z" fill="#060410"/>
                 <!-- Right Hill -->
                 <path d="M350,150 L350,100 Q650,10 1000,60 L1000,150 Z" fill="#030509"/>
                 
@@ -375,13 +352,95 @@
 
     <!-- Interactive Scripts -->
     <script>
-        // Stars & Constellations Canvas
+        // WebGL Aurora Shader
+        const auroraCanvas = document.getElementById('aurora-canvas');
+        const gl = auroraCanvas.getContext('webgl');
+        if (gl) {
+            const vsSource = `
+                attribute vec4 aVertexPosition;
+                void main() { gl_Position = aVertexPosition; }
+            `;
+            const fsSource = `
+                precision highp float;
+                uniform vec2 u_resolution;
+                uniform float u_time;
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                    vec2 p = uv;
+                    p.x *= u_resolution.x / u_resolution.y;
+
+                    vec3 col = vec3(0.0);
+                    float t = u_time * 0.2;
+
+                    for(float i=0.0; i<4.0; i++) {
+                        vec2 q = p;
+                        q.x += t * (0.2 + i * 0.1);
+                        q.y += sin(q.x * 2.0 + t + i) * 0.2 + 0.5;
+                        
+                        float intensity = abs(1.0 / (50.0 * (uv.y - q.y)));
+                        float curtains = sin(q.x * 20.0 + t * 5.0) * 0.5 + 0.5;
+                        intensity *= (0.5 + 0.5 * curtains);
+                        
+                        vec3 ribbonColor = mix(vec3(0.0, 1.0, 0.6), vec3(0.2, 0.3, 1.0), i / 4.0);
+                        col += intensity * ribbonColor * 0.15;
+                    }
+                    col *= smoothstep(0.0, 0.4, uv.y) * smoothstep(1.0, 0.5, uv.y);
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `;
+            const initShader = (gl, type, source) => {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                return shader;
+            };
+            const shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, initShader(gl, gl.VERTEX_SHADER, vsSource));
+            gl.attachShader(shaderProgram, initShader(gl, gl.FRAGMENT_SHADER, fsSource));
+            gl.linkProgram(shaderProgram);
+            gl.useProgram(shaderProgram);
+            const posBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([1,1, -1,1, 1,-1, -1,-1]), gl.STATIC_DRAW);
+            const posAttr = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+            gl.enableVertexAttribArray(posAttr);
+            gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
+            const timeLoc = gl.getUniformLocation(shaderProgram, "u_time");
+            const resLoc = gl.getUniformLocation(shaderProgram, "u_resolution");
+            
+            const resizeAurora = () => {
+                auroraCanvas.width = window.innerWidth;
+                auroraCanvas.height = window.innerHeight;
+                gl.viewport(0, 0, auroraCanvas.width, auroraCanvas.height);
+            };
+            window.addEventListener('resize', resizeAurora);
+            resizeAurora();
+            
+            let start = Date.now();
+            const renderAurora = () => {
+                gl.uniform1f(timeLoc, (Date.now() - start) / 1000.0);
+                gl.uniform2f(resLoc, auroraCanvas.width, auroraCanvas.height);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                requestAnimationFrame(renderAurora);
+            };
+            renderAurora();
+        }
+
+        // Stars & Constellations Canvas (Interactive)
         const canvas = document.getElementById('sky-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
         let stars = [];
-        const numStars = 150;
+        const numStars = 200;
         const maxDistance = 120;
+        const mouseRadius = 250;
+        let mouseX = -1000;
+        let mouseY = -1000;
+        
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
         
         function resize() {
             width = canvas.width = window.innerWidth;
@@ -394,49 +453,65 @@
             stars.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
-                vx: (Math.random() - 0.5) * 0.2,
-                vy: (Math.random() - 0.5) * 0.2,
-                radius: Math.random() * 1.5 + 0.5,
-                alpha: Math.random() * 0.5 + 0.1
+                vx: (Math.random() - 0.5) * 0.05, // very slow movement
+                vy: (Math.random() - 0.5) * 0.05,
+                radius: Math.random() * 1.2 + 0.5,
+                baseAlpha: Math.random() * 0.5 + 0.1,
+                timeOffset: Math.random() * Math.PI * 2
             });
         }
 
+        let time = 0;
         function drawStars() {
             ctx.clearRect(0, 0, width, height);
+            time += 0.02;
             
-            // Update and draw stars
             for (let i = 0; i < stars.length; i++) {
                 let s = stars[i];
                 s.x += s.vx;
                 s.y += s.vy;
                 
-                // Wrap around edges
                 if (s.x < 0) s.x = width;
                 if (s.x > width) s.x = 0;
                 if (s.y < 0) s.y = height;
                 if (s.y > height) s.y = 0;
                 
+                // Shimmer effect
+                let shimmer = Math.sin(time + s.timeOffset) * 0.3;
+                let currentAlpha = Math.max(0, Math.min(1, s.baseAlpha + shimmer));
+                
                 ctx.beginPath();
                 ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+                ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha})`;
                 ctx.fill();
             }
             
-            // Draw constellations
+            // Draw interactive constellations
             for (let i = 0; i < stars.length; i++) {
-                for (let j = i + 1; j < stars.length; j++) {
-                    let dx = stars[i].x - stars[j].x;
-                    let dy = stars[i].y - stars[j].y;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist < maxDistance) {
-                        ctx.beginPath();
-                        ctx.moveTo(stars[i].x, stars[i].y);
-                        ctx.lineTo(stars[j].x, stars[j].y);
-                        let alpha = (1 - dist / maxDistance) * 0.3; // Fades out as they drift apart
-                        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
+                // Check distance to mouse
+                let dxMouse = stars[i].x - mouseX;
+                let dyMouse = stars[i].y - mouseY;
+                let distMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+                
+                if (distMouse < mouseRadius) {
+                    for (let j = i + 1; j < stars.length; j++) {
+                        let dx = stars[i].x - stars[j].x;
+                        let dy = stars[i].y - stars[j].y;
+                        let dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < maxDistance) {
+                            ctx.beginPath();
+                            ctx.moveTo(stars[i].x, stars[i].y);
+                            ctx.lineTo(stars[j].x, stars[j].y);
+                            // Fade based on distance to each other AND distance to mouse
+                            let alphaDist = (1 - dist / maxDistance);
+                            let alphaMouse = (1 - distMouse / mouseRadius);
+                            let alpha = alphaDist * alphaMouse * 0.5;
+                            
+                            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                            ctx.lineWidth = 0.6;
+                            ctx.stroke();
+                        }
                     }
                 }
             }
