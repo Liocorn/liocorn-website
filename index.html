@@ -359,41 +359,351 @@
                 void main() { gl_Position = aVertexPosition; }
             `;
             const fsSource = `
-                precision highp float;
-                uniform vec2 u_resolution;
-                uniform float u_time;
-                void main() {
-                    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-                    vec2 p = uv;
-                    p.x *= u_resolution.x / u_resolution.y;
+precision highp float;
 
-                    vec3 col = vec3(0.0);
-                    float t = u_time * 0.2;
+uniform vec2 u_resolution;
+uniform float u_time;
 
-                    for(float i=0.0; i<4.0; i++) {
-                        vec2 q = p;
-                        q.x += t * (0.2 + i * 0.1);
-                        q.y += sin(q.x * 2.0 + t + i) * 0.2 + 0.5;
-                        
-                        float dist = uv.y - q.y;
-                        float intensity = 0.0;
-                        if (dist > 0.0) {
-                            intensity = exp(-dist * 15.0); // smooth blend up
-                        } else {
-                            intensity = exp(dist * 120.0); // sharp cut off bottom
-                        }
-                        
-                        float curtains = sin(q.x * 25.0 - t * 5.0) * 0.5 + 0.5;
-                        intensity *= (0.3 + 0.7 * curtains);
-                        
-                        vec3 ribbonColor = mix(vec3(0.1, 1.0, 0.5), vec3(0.5, 0.2, 1.0), i / 5.0);
-                        float globalPulse = sin(t * 1.5) * 0.5 + 0.8;
-                        col += intensity * ribbonColor * 0.5 * globalPulse;
-                    }
-                    col *= smoothstep(0.1, 0.5, uv.y) * smoothstep(1.0, 0.4, uv.y);
-                    gl_FragColor = vec4(col * 2.5, 1.0);
-                }
-            `;
+#define PI 3.14159265359
+
+// ------------------------------------------------------------
+// Smooth noise
+// ------------------------------------------------------------
+
+float hash(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+vec2 hash2(vec2 p) {
+  float n = hash(p);
+  return vec2(n, hash(p + n + 17.17));
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+
+  f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+
+  float a = hash(i + vec2(0.0, 0.0));
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+
+  mat2 m = mat2(
+    0.82, -0.57,
+    0.57,  0.82
+  );
+
+  for (int i = 0; i < 4; i++) {
+    v += a * noise(p);
+    p = m * p * 1.95 + 8.73;
+    a *= 0.5;
+  }
+
+  return v;
+}
+
+float bell(float x, float width) {
+  return exp(-(x * x) / max(width * width, 0.00001));
+}
+
+float saturate(float x) {
+  return clamp(x, 0.0, 1.0);
+}
+
+// ------------------------------------------------------------
+// Time behavior
+// ------------------------------------------------------------
+
+float movementPulse(float t) {
+  float a = 0.5 + 0.5 * sin(t * 0.23);
+  float b = 0.5 + 0.5 * sin(t * 0.071 + 2.4);
+  float c = 0.5 + 0.5 * sin(t * 0.41 + 1.1);
+
+  float pulse = a * 0.55 + b * 0.30 + c * 0.15;
+
+  return smoothstep(0.18, 0.95, pulse);
+}
+
+float animatedTime(float t) {
+  float pulse = movementPulse(t);
+  // Faster fast moments tweak applied
+  return t * mix(0.35, 2.65, pulse);
+}
+
+// ------------------------------------------------------------
+// Stars, sparse and soft
+// ------------------------------------------------------------
+
+float starField(vec2 uv) {
+  vec2 p = uv * vec2(210.0, 105.0);
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+
+  float result = 0.0;
+
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 cell = id + vec2(float(x), float(y));
+      vec2 rnd = hash2(cell);
+
+      float chance = hash(cell + 23.7);
+      float visible = smoothstep(0.9945, 1.0, chance);
+
+      vec2 pos = vec2(float(x), float(y)) + rnd - f;
+      float d = dot(pos, pos);
+
+      float star = exp(-d * 175.0);
+      float twinkle = 0.90 + 0.10 * sin(u_time * 0.55 + hash(cell) * 20.0);
+
+      result += star * visible * twinkle;
+    }
+  }
+
+  return result;
+}
+
+// ------------------------------------------------------------
+// Big partial mask
+// ------------------------------------------------------------
+
+float skyOpeningMask(vec2 uv, float at) {
+  float x = uv.x;
+
+  float drift = at * 0.075;
+
+  float n1 = fbm(vec2(x * 1.20 - drift, 1.0));
+  float n2 = fbm(vec2(x * 2.40 + drift * 0.65, 4.0));
+  float n3 = fbm(vec2(x * 4.00 - drift * 0.35, 9.0));
+
+  float field = n1 * 0.62 + n2 * 0.27 + n3 * 0.11;
+
+  float openClose = 0.5 + 0.5 * sin(u_time * 0.18 + sin(u_time * 0.049) * 2.0);
+  // More frequent cutoffs tweak applied
+  float threshold = mix(0.36, 0.72, openClose);
+
+  float mask = smoothstep(threshold - 0.12, threshold + 0.18, field);
+
+  float sweepCenter = 0.5 + 0.42 * sin(u_time * 0.095 + 1.6);
+  float sweepWidth = mix(0.35, 0.78, 0.5 + 0.5 * sin(u_time * 0.063));
+  float sweep = 1.0 - smoothstep(sweepWidth, sweepWidth + 0.22, abs(x - sweepCenter));
+
+  mask *= mix(0.42, 1.0, sweep);
+
+  return mask;
+}
+
+// ------------------------------------------------------------
+// Hook deformation
+// ------------------------------------------------------------
+
+vec2 hookSpace(vec2 uv, float at, float layer) {
+  vec2 p = uv;
+
+  float hookAmount = 0.5 + 0.5 * sin(u_time * 0.20 + layer * 1.35);
+  hookAmount = smoothstep(0.10, 1.0, hookAmount);
+
+  float hookX = 0.50 + 0.24 * sin(u_time * 0.115 + layer);
+  float side = p.x - hookX;
+
+  float influence = exp(-side * side * mix(3.0, 8.0, hookAmount));
+
+  float curl = hookAmount * influence;
+
+  // More hook/curl tweak applied
+  p.y += curl * sin(side * mix(2.0, 6.2, hookAmount) + at * 0.18) * 0.24;
+  p.x += curl * cos((p.y - 0.45) * 4.5 + side * 2.2) * 0.14;
+
+  float oneSided = smoothstep(-0.25, 0.45, side);
+  p.y += oneSided * curl * 0.12;
+
+  return p;
+}
+
+// ------------------------------------------------------------
+// Aurora layer
+// ------------------------------------------------------------
+
+vec3 auroraLayer(
+  vec2 uv,
+  float layer,
+  float baseHeight,
+  float width,
+  vec3 lowerColor,
+  vec3 upperColor
+) {
+  float at = animatedTime(u_time);
+
+  vec2 h = hookSpace(uv, at, layer);
+
+  float wx = fbm(vec2(h.x * 0.90 + at * 0.030, h.y * 0.70 - at * 0.015 + layer));
+  float wy = fbm(vec2(h.x * 1.15 - at * 0.020, h.y * 0.90 + at * 0.018 + 5.7 + layer));
+
+  vec2 q = h + vec2(wx - 0.5, wy - 0.5) * (0.15 + layer * 0.025);
+
+  float center = baseHeight;
+
+  center += sin(q.x * 1.25 + at * 0.28 + layer * 1.8) * 0.085;
+  center += sin(q.x * 2.15 - at * 0.18 + layer * 2.3) * 0.045;
+  center += (fbm(vec2(q.x * 1.45 + at * 0.040, layer * 3.0)) - 0.5) * 0.090;
+
+  float d = uv.y - center;
+
+  float body = bell(d, width);
+
+  float lowerRim = bell(d + width * 0.60, width * 0.24);
+  float bottomReveal = smoothstep(-width * 0.92, -width * 0.30, d);
+  float upperFade = 1.0 - smoothstep(width * 0.20, width * 4.10, d);
+
+  vec2 cuv = q;
+
+  cuv.x += fbm(vec2(q.x * 1.15, q.y * 0.85 + at * 0.030 + layer)) * 0.24;
+  cuv.y += fbm(vec2(q.x * 1.40 - at * 0.015, q.y * 0.75 + layer)) * 0.10;
+
+  float broad = fbm(vec2(
+    cuv.x * 3.00 + at * 0.060,
+    cuv.y * 1.10 - at * 0.020 + layer
+  ));
+
+  // More soothing tweak applied
+  float medium = fbm(vec2(
+    cuv.x * 3.80 - at * 0.050,
+    cuv.y * 0.85 + at * 0.015 + layer * 2.0
+  ));
+
+  float silk = sin(
+    cuv.x * 6.8
+    + fbm(vec2(cuv.x * 1.1, cuv.y * 1.1 + at * 0.025)) * 2.6
+    + at * 0.16
+    + layer
+  );
+
+  silk = 0.5 + 0.5 * silk;
+  silk = smoothstep(0.10, 1.0, silk);
+
+  float curtain = mix(broad, medium, 0.32);
+  // More soothing tweak applied
+  curtain = mix(curtain, silk, 0.05);
+  curtain = smoothstep(0.18, 0.95, curtain);
+
+  curtain = mix(0.74, 1.16, curtain);
+
+  float opening = skyOpeningMask(q + vec2(layer * 0.07, 0.0), at);
+
+  float verticalCutWave = fbm(vec2(q.x * 1.6 - at * 0.04, layer * 2.0));
+  float cutHeight = mix(0.32, 0.78, verticalCutWave);
+  float topCut = 1.0 - smoothstep(cutHeight, cutHeight + 0.28, uv.y);
+
+  float flickerCut = 0.75 + 0.25 * sin(u_time * 0.50 + layer * 2.0);
+  flickerCut = smoothstep(0.20, 0.95, flickerCut);
+
+  float mask = body * bottomReveal * upperFade;
+  mask *= mix(0.40, 1.0, opening);
+  mask *= mix(0.68, 1.0, topCut);
+  mask *= mix(0.82, 1.0, flickerCut);
+
+  float softness = fbm(vec2(q.x * 1.2 - at * 0.018, q.y * 1.1 + layer * 4.0));
+  mask *= mix(0.86, 1.08, softness);
+
+  vec3 color = mix(
+    lowerColor,
+    upperColor,
+    smoothstep(-width * 0.30, width * 2.75, d)
+  );
+
+  vec3 result = vec3(0.0);
+
+  result += color * mask * curtain * 0.95;
+
+  result += vec3(0.70, 1.00, 0.82) * lowerRim * upperFade * opening * 0.40;
+
+  result += color * bell(d, width * 3.25) * upperFade * opening * 0.16;
+
+  return result;
+}
+
+// ------------------------------------------------------------
+// Main
+// ------------------------------------------------------------
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+
+  vec2 p = uv;
+  p.x = (p.x - 0.5) * u_resolution.x / u_resolution.y + 0.5;
+
+  vec3 sky = vec3(0.0, 0.0, 0.002);
+
+  vec3 deepBlue = vec3(0.003, 0.008, 0.026);
+  vec3 upperBlue = vec3(0.010, 0.020, 0.055);
+
+  sky = mix(sky, deepBlue, smoothstep(0.45, 0.90, uv.y) * 0.45);
+  sky = mix(sky, upperBlue, smoothstep(0.70, 1.00, uv.y) * 0.65);
+
+  float skyNoise = fbm(uv * vec2(1.30, 0.90) + vec2(0.0, u_time * 0.003));
+  sky += vec3(0.0015, 0.003, 0.007) * skyNoise * smoothstep(0.45, 1.0, uv.y);
+
+  float vignette = distance(uv, vec2(0.5, 0.58));
+  sky *= 1.0 - smoothstep(0.38, 0.95, vignette) * 0.76;
+
+  float stars = starField(uv);
+  sky += vec3(0.72, 0.84, 1.0) * stars * smoothstep(0.56, 0.96, uv.y) * 0.25;
+
+  vec3 aurora = vec3(0.0);
+
+  aurora += auroraLayer(
+    p,
+    0.0,
+    0.36,
+    0.118,
+    vec3(0.05, 0.92, 0.42),
+    vec3(0.16, 0.62, 0.95)
+  ) * 1.06;
+
+  aurora += auroraLayer(
+    p + vec2(0.07, 0.045),
+    1.0,
+    0.49,
+    0.150,
+    vec3(0.04, 0.70, 0.55),
+    vec3(0.48, 0.30, 0.86)
+  ) * 0.62;
+
+  aurora += auroraLayer(
+    p + vec2(-0.12, 0.085),
+    2.0,
+    0.61,
+    0.185,
+    vec3(0.04, 0.48, 0.68),
+    vec3(0.44, 0.20, 0.74)
+  ) * 0.32;
+
+  aurora *= smoothstep(0.16, 0.40, uv.y);
+
+  vec3 color = sky + aurora;
+
+  color += aurora * aurora * 0.24;
+
+  color = color / (1.0 + color * 0.78);
+
+  float luma = dot(color, vec3(0.299, 0.587, 0.114));
+  color = mix(vec3(luma), color, 1.11);
+
+  color = pow(color, vec3(0.92));
+
+  gl_FragColor = vec4(color, 1.0);
+}
+`;
             const initShader = (gl, type, source) => {
                 const shader = gl.createShader(type);
                 gl.shaderSource(shader, source);
