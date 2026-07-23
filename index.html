@@ -45,10 +45,10 @@
             height: 100vh;
             pointer-events: none;
             z-index: 0;
-            opacity: 0.12;
+            opacity: 0.6;
             mix-blend-mode: screen;
             overflow: hidden;
-            background: radial-gradient(circle at center, rgba(0, 229, 255, 0.2) 0%, transparent 70%);
+            background: radial-gradient(circle at center, rgba(0, 229, 255, 0.3) 0%, transparent 80%);
         }
         
         /* We use multiple background layers panning in different directions to simulate water refractions */
@@ -58,14 +58,13 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            /* Using a combination of repeating linear gradients to create a water-like mesh */
             background-image: 
-                repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(0, 229, 255, 0.1) 22px, transparent 24px),
-                repeating-linear-gradient(-45deg, transparent, transparent 20px, rgba(0, 229, 255, 0.1) 22px, transparent 24px),
-                repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(0, 229, 255, 0.1) 45px, transparent 50px);
-            background-size: 100px 100px;
-            animation: moveCaustics 20s linear infinite;
-            filter: blur(2px);
+                repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(0, 229, 255, 0.6) 42px, transparent 48px),
+                repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(0, 229, 255, 0.6) 42px, transparent 48px),
+                repeating-linear-gradient(0deg, transparent, transparent 80px, rgba(0, 229, 255, 0.5) 85px, transparent 95px);
+            background-size: 200px 200px;
+            animation: moveCaustics 15s linear infinite;
+            filter: blur(4px);
         }
         
         .caustics-layer-2 {
@@ -75,11 +74,11 @@
             width: 200%;
             height: 200%;
             background-image: 
-                repeating-linear-gradient(30deg, transparent, transparent 30px, rgba(0, 229, 255, 0.15) 33px, transparent 36px),
-                repeating-linear-gradient(-30deg, transparent, transparent 30px, rgba(0, 229, 255, 0.15) 33px, transparent 36px);
-            background-size: 150px 150px;
-            animation: moveCausticsReverse 25s linear infinite;
-            filter: blur(3px);
+                repeating-linear-gradient(30deg, transparent, transparent 60px, rgba(0, 229, 255, 0.7) 63px, transparent 70px),
+                repeating-linear-gradient(-30deg, transparent, transparent 60px, rgba(0, 229, 255, 0.7) 63px, transparent 70px);
+            background-size: 250px 250px;
+            animation: moveCausticsReverse 20s linear infinite;
+            filter: blur(5px);
         }
 
         @keyframes moveCaustics {
