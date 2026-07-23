@@ -117,8 +117,10 @@
         <canvas id="sky-canvas" class="absolute inset-0 z-0 pointer-events-none"></canvas>
 
         <!-- Mountains (Layer 1) -->
-        <!-- Abstract Raymarch (Background) -->
-        <canvas id="abstract-canvas" class="absolute inset-0 z-0 mix-blend-screen opacity-30 pointer-events-none"></canvas>
+        <!-- Abstract Raymarch (Background Bottom) -->
+        <div class="absolute bottom-0 w-full h-[50vh] z-0 mix-blend-screen opacity-60 pointer-events-none">
+            <canvas id="abstract-canvas" class="w-full h-full pointer-events-none"></canvas>
+        </div>
 
         <!-- Fireflies (Foreground) -->
         <div class="absolute inset-0 z-20 pointer-events-none">
@@ -710,8 +712,6 @@ void main() {
             // --- Abstract Raymarching Background ---
             const abstractCanvas = document.getElementById('abstract-canvas');
             if (abstractCanvas) {
-                // Increase opacity so it's more visible
-                abstractCanvas.className = "absolute inset-0 z-0 mix-blend-screen opacity-60 pointer-events-none";
                 const agl = abstractCanvas.getContext('webgl', { alpha: false, preserveDrawingBuffer: false });
                 if (agl) {
                     const avsSource = `
@@ -724,6 +724,7 @@ void main() {
                         precision mediump float;
                         uniform vec2 u_resolution;
                         uniform float u_time;
+                        uniform vec2 u_mouse;
 
                         void r(inout vec2 p, float a) {
                             p = cos(a)*p + sin(a)*vec2(p.y, -p.x);
@@ -738,7 +739,9 @@ void main() {
                         void main() {
                             vec2 w = gl_FragCoord.xy;
                             vec2 u = (-u_resolution.xy + 2.0 * w) / u_resolution.y;
-                            vec3 ro = vec3(u, 1.0);
+                            
+                            // Interactive camera offset
+                            vec3 ro = vec3(u + u_mouse * 0.2, 1.0);
                             vec3 rd = normalize(vec3(u, -1.0));
                             vec3 p;
                             float d = 0.0, m;
@@ -751,8 +754,9 @@ void main() {
                                 float i = 1.0 - float(iter) * 0.02;
                                 p = ro + rd * d;
                                 
-                                vec2 pzy = p.zy; r(pzy, u_time * 0.2); p.zy = pzy;
-                                vec2 pzx = p.zx; r(pzx, u_time * 0.15); p.zx = pzx;
+                                // Interactive mouse rotation
+                                vec2 pzy = p.zy; r(pzy, u_time * 0.2 + u_mouse.y * 1.5); p.zy = pzy;
+                                vec2 pzx = p.zx; r(pzx, u_time * 0.15 - u_mouse.x * 1.5); p.zx = pzx;
                                 
                                 m = length(cos(abs(p) + sin(abs(p)) + u_time * 0.3)) - (PSD + 0.5);
                                 d += m;
@@ -792,18 +796,31 @@ void main() {
                     
                     const aTimeLoc = agl.getUniformLocation(aShaderProg, "u_time");
                     const aResLoc = agl.getUniformLocation(aShaderProg, "u_resolution");
+                    const aMouseLoc = agl.getUniformLocation(aShaderProg, "u_mouse");
+                    
+                    let moX = 0, moY = 0;
+                    let targetMoX = 0, targetMoY = 0;
+                    window.addEventListener('mousemove', (e) => {
+                        targetMoX = (e.clientX / window.innerWidth) * 2.0 - 1.0;
+                        targetMoY = -(e.clientY / window.innerHeight) * 2.0 + 1.0;
+                    });
                     
                     const resizeAbstract = () => {
-                        abstractCanvas.width = window.innerWidth;
-                        abstractCanvas.height = window.innerHeight;
+                        const rect = abstractCanvas.parentElement.getBoundingClientRect();
+                        abstractCanvas.width = rect.width;
+                        abstractCanvas.height = rect.height;
                         agl.viewport(0, 0, abstractCanvas.width, abstractCanvas.height);
                     };
                     window.addEventListener('resize', resizeAbstract);
                     resizeAbstract();
                     
                     const renderAbstract = () => {
+                        moX += (targetMoX - moX) * 0.05;
+                        moY += (targetMoY - moY) * 0.05;
+                        
                         agl.uniform1f(aTimeLoc, (Date.now() - start) / 1000.0);
                         agl.uniform2f(aResLoc, abstractCanvas.width, abstractCanvas.height);
+                        agl.uniform2f(aMouseLoc, moX, moY);
                         agl.drawArrays(agl.TRIANGLE_STRIP, 0, 4);
                         requestAnimationFrame(renderAbstract);
                     };
