@@ -49,25 +49,16 @@
         
         /* Removed CSS Aurora keyframes in favor of WebGL */
         
-        @keyframes flicker-candle {
-            0%, 100% { opacity: 0.9; fill: #f59e0b; }
-            20% { opacity: 0.6; fill: #ea580c; }
-            40% { opacity: 0.8; fill: #ef4444; }
-            60% { opacity: 0.5; fill: #f59e0b; }
-            80% { opacity: 1.0; fill: #ea580c; }
+        @keyframes fireplace {
+            0% { opacity: 0.8; }
+            20% { opacity: 1.0; }
+            40% { opacity: 0.85; }
+            60% { opacity: 0.95; }
+            80% { opacity: 0.75; }
+            100% { opacity: 0.9; }
         }
-        .animate-flicker-1 { animation: flicker-candle 3s infinite alternate; }
-        .animate-flicker-2 { animation: flicker-candle 4s infinite alternate-reverse; }
-        .animate-flicker-3 { animation: flicker-candle 2.5s infinite alternate; }
-        .animate-flicker-4 { animation: flicker-candle 5s infinite alternate-reverse; }
-
-        @keyframes sway {
-            0%, 100% { transform: rotate(-2deg); }
-            50% { transform: rotate(2deg); }
-        }
-        .sway-1 { transform-origin: bottom center; animation: sway 6s ease-in-out infinite; }
-        .sway-2 { transform-origin: bottom center; animation: sway 8s ease-in-out infinite 1s; }
-        .sway-3 { transform-origin: bottom center; animation: sway 7s ease-in-out infinite 2s; }
+        .fireplace-flicker { animation: fireplace 3s infinite alternate ease-in-out; }
+        .fireplace-flicker-slow { animation: fireplace 5s infinite alternate-reverse ease-in-out; }
 
         /* 3D Scroll Reveal Classes */
         .perspective-container {
@@ -133,17 +124,40 @@
             </svg>
         </div>
 
-        <!-- Forest (Layer 2) -->
-        <div class="parallax-layer absolute bottom-0 w-full h-[40vh] z-20" data-speed="0.25">
-            <canvas id="forest-canvas" class="w-full h-full pointer-events-none"></canvas>
+        <!-- Fireflies (Layer 2) -->
+        <div class="parallax-layer absolute bottom-0 w-full h-[40vh] z-20 pointer-events-none" data-speed="0.25">
+            <canvas id="fireflies-canvas" class="w-full h-full pointer-events-none"></canvas>
         </div>
 
-        <!-- Front Hills & Homes (Layer 3) -->
+        <!-- Big Window & Foreground (Layer 3) -->
         <div class="parallax-layer absolute bottom-0 w-full h-[25vh] z-30" data-speed="0.4">
-            <svg id="hills-svg" viewBox="0 0 1000 150" preserveAspectRatio="none" class="w-full h-full text-[#060410]">
-                <!-- Trees and houses filled dynamically -->
-                <path d="M0,150 L0,50 Q200,-20 450,80 L450,150 Z" fill="currentColor"/>
-                <path d="M350,150 L350,100 Q650,10 1000,60 L1000,150 Z" fill="#030509"/>
+            <svg id="foreground-svg" viewBox="0 0 1000 250" preserveAspectRatio="none" class="w-full h-full text-[#030509]">
+                <defs>
+                    <filter id="heavy-blur" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="6"/>
+                    </filter>
+                    <filter id="light-blur" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3"/>
+                    </filter>
+                    <radialGradient id="fire-glow" cx="50%" cy="80%" r="60%">
+                        <stop offset="0%" stop-color="#ff4d00" />
+                        <stop offset="60%" stop-color="#aa2200" />
+                        <stop offset="100%" stop-color="#2a0800" />
+                    </radialGradient>
+                </defs>
+                
+                <!-- Foreground Hill Shape -->
+                <path d="M0,250 L0,150 Q300,50 600,180 T1000,100 L1000,250 Z" fill="currentColor"/>
+                
+                <!-- The Big Window -->
+                <g transform="translate(650, 60) scale(1.1)">
+                    <!-- Fireplace glow background -->
+                    <path d="M 0 120 L 0 40 A 40 40 0 0 1 80 40 L 80 120 Z" fill="url(#fire-glow)" filter="url(#heavy-blur)" class="fireplace-flicker"/>
+                    <!-- The dark frame silhouette -->
+                    <path d="M 0 120 L 0 40 A 40 40 0 0 1 80 40 L 80 120 Z" fill="none" stroke="#000" stroke-width="8" filter="url(#light-blur)"/>
+                    <line x1="40" y1="0" x2="40" y2="120" stroke="#000" stroke-width="6" filter="url(#light-blur)"/>
+                    <line x1="0" y1="60" x2="80" y2="60" stroke="#000" stroke-width="6" filter="url(#light-blur)"/>
+                </g>
             </svg>
         </div>
     </div>
@@ -895,224 +909,69 @@ void main() {
             });
         });
 
-        // Generate Trees and Houses Dynamically
+        // Fireflies & Foreground Setup
         document.addEventListener('DOMContentLoaded', () => {
-            const createEl = (tag, attrs) => {
-                const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
-                for (const k in attrs) el.setAttribute(k, attrs[k]);
-                return el;
-            };
-            
-            // Procedural Forest Layer (Layer 2)
-            const fCanvas = document.getElementById("forest-canvas");
-            if (fCanvas) {
-                const fctx = fCanvas.getContext("2d");
-                let fTrees = [];
+            const ffCanvas = document.getElementById('fireflies-canvas');
+            if (ffCanvas) {
+                const ffCtx = ffCanvas.getContext('2d');
+                let fireflies = [];
+                const numFireflies = 35;
 
-                function seededRandom(seed) {
-                  const x = Math.sin(seed * 127.1) * 43758.5453123;
-                  return x - Math.floor(x);
-                }
-
-                function fSmoothStep(edge0, edge1, x) {
-                  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-                  return t * t * (3 - 2 * t);
-                }
-
-                function createTrees(width, height) {
-                  fTrees = [];
-                  const averageSpacing = width < 700 ? 95 : 112;
-                  const treeCount = Math.floor(width / averageSpacing) + 5;
-
-                  for (let i = 0; i < treeCount; i++) {
-                    const depth = seededRandom(i + 4.71);
-                    const spacing = (width + 160) / treeCount;
-                    const x = -80 + i * spacing + (seededRandom(i + 1.13) - 0.5) * spacing * 0.42;
-                    const baseY = height * (0.935 + depth * 0.055 + (seededRandom(i + 44.12) - 0.5) * 0.015);
-                    const treeHeight = height * (0.17 + seededRandom(i + 9.22) * 0.09 + depth * 0.08);
-                    const treeWidth = treeHeight * (0.28 + seededRandom(i + 14.91) * 0.08);
-
-                    fTrees.push({
-                      x, baseY, height: treeHeight, width: treeWidth, depth,
-                      phaseOffset: (seededRandom(i + 21.37) - 0.5) * 0.55,
-                      strengthOffset: 0.86 + seededRandom(i + 31.55) * 0.28,
-                      speedOffset: 0.94 + seededRandom(i + 72.31) * 0.12,
-                      asymmetry: -0.14 + seededRandom(i + 91.7) * 0.28,
-                      layers: 5 + Math.floor(seededRandom(i + 61.77) * 2)
-                    });
-                  }
-                  fTrees.sort((a, b) => a.depth - b.depth);
-                }
-
-                function bendAtHeight(totalBend, yNorm, tipBend, waveBend) {
-                  return totalBend * Math.pow(yNorm, 1.32) + tipBend * Math.pow(yNorm, 2.45) + waveBend * Math.sin(yNorm * Math.PI * 1.08) * Math.pow(yNorm, 1.08);
-                }
-
-                function drawCurvedPineLayer({ tipX, tipY, baseX, baseY, width, height, curve, droop, skew }) {
-                  const half = width * 0.5;
-                  fctx.beginPath();
-                  fctx.moveTo(tipX, tipY);
-                  fctx.quadraticCurveTo(tipX - half * (0.42 + curve * 0.10) + skew, tipY + height * (0.34 + curve * 0.10), baseX - half, baseY);
-                  fctx.quadraticCurveTo(baseX + skew * 0.35, baseY + height * droop, baseX + half, baseY);
-                  fctx.quadraticCurveTo(tipX + half * (0.42 + curve * 0.10) + skew, tipY + height * (0.34 + curve * 0.10), tipX, tipY);
-                  fctx.closePath();
-                  fctx.fill();
-                }
-
-                function globalWindAt(x, width, time, tree) {
-                  const t = time * 0.001;
-                  const normalizedX = x / width;
-
-                  const baseWaveA = Math.sin(normalizedX * 4.2 - t * 0.34 + tree.phaseOffset) * 0.25;
-                  const baseWaveB = Math.sin(normalizedX * 7.1 - t * 0.51 + tree.phaseOffset * 1.7) * 0.13;
-                  const wanderingNoise = Math.sin(normalizedX * 2.3 + t * 0.17 + tree.phaseOffset * 2.1) * 0.5 + Math.sin(normalizedX * 5.7 - t * 0.11 + tree.phaseOffset * 0.9) * 0.5;
-                  const irregularity = 0.82 + 0.18 * wanderingNoise;
-
-                  const cycleDuration = 7.2;
-                  const cycle = (t % cycleDuration) / cycleDuration;
-                  const leftToRightCenter = -0.35 + cycle * 1.70;
-                  const leftToRightDistance = normalizedX - leftToRightCenter;
-                  const leftToRightFront = Math.exp(-(leftToRightDistance * leftToRightDistance) / 0.014);
-                  const leftToRightEnvelope = fSmoothStep(0.02, 0.14, cycle) * (1.0 - fSmoothStep(0.86, 0.99, cycle));
-                  const leftToRightGust = leftToRightFront * leftToRightEnvelope * 1.55;
-
-                  const reverseCycleDuration = 13.5;
-                  const reverseCycle = ((t + 4.0) % reverseCycleDuration) / reverseCycleDuration;
-                  const rightToLeftCenter = 1.25 - reverseCycle * 1.55;
-                  const rightToLeftDistance = normalizedX - rightToLeftCenter;
-                  const rightToLeftFront = Math.exp(-(rightToLeftDistance * rightToLeftDistance) / 0.020);
-                  const rightToLeftEnvelope = fSmoothStep(0.05, 0.22, reverseCycle) * (1.0 - fSmoothStep(0.72, 0.95, reverseCycle));
-                  const rightToLeftGust = -rightToLeftFront * rightToLeftEnvelope * 0.90;
-
-                  const leftSettling = Math.sin(normalizedX * 8.5 - t * 0.95 + 1.2) * leftToRightFront * leftToRightEnvelope * 0.16;
-                  const rightSettling = Math.sin(normalizedX * 7.0 + t * 0.75 + 2.4) * rightToLeftFront * rightToLeftEnvelope * 0.12;
-
-                  const slowMagnitude = 0.82 + 0.18 * Math.sin(t * 0.095 + normalizedX * 0.9);
-
-                  return (baseWaveA + baseWaveB + leftToRightGust + rightToLeftGust + leftSettling + rightSettling) * slowMagnitude * irregularity * tree.strengthOffset;
-                }
-
-                function drawTree(tree, time) {
-                  const width = fCanvas.width;
-                  const x = tree.x;
-                  const baseY = tree.baseY;
-                  const h = tree.height;
-                  const w = tree.width;
-
-                  fctx.fillStyle = "#0D0A20"; // Match layer color
-
-                  const t = time * 0.001;
-                  const wind = globalWindAt(x, width, time, tree);
-                  const bendStrength = 17.0 * tree.speedOffset * (0.75 + tree.depth * 0.65);
-                  const totalBend = wind * bendStrength;
-
-                  const delayedWind = globalWindAt(x - 45, width, time - 220, tree);
-                  const tipBend = delayedWind * bendStrength * 0.38 * (0.65 + tree.depth * 0.55);
-                  const waveBend = Math.sin(t * 0.42 - x / width * 3.5 + tree.phaseOffset) * bendStrength * 0.13 * Math.min(1.2, Math.abs(wind));
-
-                  for (let i = 0; i < tree.layers; i++) {
-                    const u = i / (tree.layers - 1);
-                    const topNorm = 0.25 + u * 0.45;
-                    const tipY = baseY - h * topNorm;
-                    const layerHeight = h * (0.335 - u * 0.060);
-                    const baseNorm = Math.max(0.0, topNorm - layerHeight / h);
-
-                    const tipBendHere = bendAtHeight(totalBend, topNorm, tipBend, waveBend);
-                    const baseBendHere = bendAtHeight(totalBend, baseNorm, tipBend, waveBend);
+                function initFireflies() {
+                    const rect = ffCanvas.parentElement.getBoundingClientRect();
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    ffCanvas.width = Math.floor(rect.width * dpr);
+                    ffCanvas.height = Math.floor(rect.height * dpr);
                     
-                    const localFlutter = Math.sin(t * 0.48 - x / width * 4.5 + u * 1.5 + tree.phaseOffset) * bendStrength * 0.010 * Math.pow(u, 1.8);
-                    const naturalOffset = Math.sin(tree.phaseOffset * 4.0 + i * 1.618) * w * 0.025 * (1.0 - u * 0.25);
-
-                    drawCurvedPineLayer({
-                      tipX: x + tipBendHere + localFlutter + naturalOffset,
-                      tipY,
-                      baseX: x + baseBendHere + localFlutter * 0.30 + naturalOffset * 0.55,
-                      baseY: tipY + layerHeight,
-                      width: w * (1.24 - u * 0.62),
-                      height: layerHeight,
-                      curve: 0.62 + (1.0 - u) * 0.34,
-                      droop: 0.13 + (1.0 - u) * 0.11,
-                      skew: wind * w * 0.070 * (0.35 + u * 0.85) + tree.asymmetry * w * 0.04
-                    });
-                  }
-
-                  fctx.beginPath();
-                  fctx.ellipse(x, baseY + h * 0.013, w * 0.18, h * 0.014, 0, 0, Math.PI * 2);
-                  fctx.fill();
-                }
-
-                function fResize() {
-                  const rect = fCanvas.parentElement.getBoundingClientRect();
-                  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                  const w = Math.floor(rect.width * dpr);
-                  const h = Math.floor(rect.height * dpr);
-                  if (fCanvas.width !== w || fCanvas.height !== h) {
-                    fCanvas.width = w;
-                    fCanvas.height = h;
-                    createTrees(w, h);
-                  }
-                }
-
-                function fAnimate(time) {
-                  fResize();
-                  fctx.clearRect(0, 0, fCanvas.width, fCanvas.height);
-                  for (const tree of fTrees) drawTree(tree, time);
-                  
-                  // Ground
-                  const groundY = fCanvas.height * 0.979;
-                  fctx.beginPath();
-                  fctx.moveTo(0, fCanvas.height);
-                  fctx.lineTo(0, groundY);
-                  for (let x = 0; x <= fCanvas.width; x += 90) {
-                    fctx.lineTo(x, groundY + Math.sin(x * 0.006 + time * 0.00008) * 1.8 + Math.sin(x * 0.017 + 1.7) * 1.1);
-                  }
-                  fctx.lineTo(fCanvas.width, fCanvas.height);
-                  fctx.fillStyle = "#0D0A20";
-                  fctx.fill();
-
-                  requestAnimationFrame(fAnimate);
-                }
-                requestAnimationFrame(fAnimate);
-            }
-            
-            // Hills Layer (Layer 3)
-            const hills = document.getElementById('hills-svg');
-            if (hills) {
-                hills.innerHTML = `
-                    <path d="M0,150 L0,50 Q200,-20 450,80 L450,150 Z" fill="currentColor"/>
-                    <path d="M350,150 L350,100 Q650,10 1000,60 L1000,150 Z" fill="#030509"/>
-                `;
-                
-                // Houses
-                for (let i = 0; i < 12; i++) {
-                    const isLeft = Math.random() > 0.5;
-                    const x = isLeft ? Math.random() * 300 + 30 : Math.random() * 400 + 450;
-                    const scale = Math.random() * 0.4 + 0.3;
-                    
-                    let base_y = isLeft ? 50 + (x/300)*25 : 80 - ((x-450)/400)*35;
-                    base_y += Math.random() * 15;
-                    
-                    const house = createEl('g', { transform: `translate(${x}, ${base_y}) scale(${scale})` });
-                    house.innerHTML = `
-                        <rect x="-10" y="-15" width="20" height="15" fill="#020105"/>
-                        <polygon points="-12,-15 0,-25 12,-15" fill="#020105"/>
-                        <rect x="-6" y="-8" width="4" height="5" class="animate-flicker-${Math.floor(Math.random()*4)+1}"/>
-                        <rect x="2" y="-8" width="4" height="5" class="animate-flicker-${Math.floor(Math.random()*4)+1}"/>
-                    `;
-                    hills.appendChild(house);
+                    fireflies = [];
+                    for(let i=0; i<numFireflies; i++) {
+                        fireflies.push({
+                            x: Math.random() * ffCanvas.width,
+                            y: Math.random() * ffCanvas.height,
+                            vx: (Math.random() - 0.5) * 0.5,
+                            vy: (Math.random() - 0.5) * 0.5,
+                            size: Math.random() * 2 + 1,
+                            phase: Math.random() * Math.PI * 2,
+                            speed: Math.random() * 0.02 + 0.01
+                        });
+                    }
                 }
                 
-                // Foreground Trees
-                for (let i = 0; i < 40; i++) {
-                    const x = Math.random() * 1050 - 25;
-                    const scale = Math.random() * 0.8 + 0.5;
-                    let base_y = x < 400 ? 70 + (x/300)*20 : 100 - ((x-500)/400)*30;
-                    base_y += Math.random() * 20 + 20;
+                function animateFireflies() {
+                    ffCtx.clearRect(0, 0, ffCanvas.width, ffCanvas.height);
                     
-                    const tree = createEl('g', { transform: `translate(${x}, ${base_y}) scale(${scale})` });
-                    tree.innerHTML = `<path d="M0,-40 Q5,-25 15,-20 Q5,-20 10,-5 Q20,-5 25,0 L-25,0 Q-20,-5 -10,-5 Q-5,-20 -15,-20 Q-5,-25 0,-40 Z" fill="#020104" class="sway-${Math.floor(Math.random()*3)+1}"/>`;
-                    hills.appendChild(tree);
+                    for(let f of fireflies) {
+                        f.x += f.vx;
+                        f.y += f.vy;
+                        
+                        if(f.x < 0) f.x = ffCanvas.width;
+                        if(f.x > ffCanvas.width) f.x = 0;
+                        if(f.y < 0) f.y = ffCanvas.height;
+                        if(f.y > ffCanvas.height) f.y = 0;
+                        
+                        f.vx += (Math.random() - 0.5) * 0.05;
+                        f.vy += (Math.random() - 0.5) * 0.05;
+                        f.vx = Math.max(-0.6, Math.min(0.6, f.vx));
+                        f.vy = Math.max(-0.6, Math.min(0.6, f.vy));
+
+                        f.phase += f.speed;
+                        const alpha = 0.2 + 0.6 * Math.abs(Math.sin(f.phase));
+
+                        const gradient = ffCtx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.size * 3);
+                        gradient.addColorStop(0, `rgba(220, 255, 180, ${alpha})`);
+                        gradient.addColorStop(1, `rgba(220, 255, 180, 0)`);
+                        
+                        ffCtx.fillStyle = gradient;
+                        ffCtx.beginPath();
+                        ffCtx.arc(f.x, f.y, f.size * 3, 0, Math.PI * 2);
+                        ffCtx.fill();
+                    }
+                    requestAnimationFrame(animateFireflies);
                 }
+                
+                window.addEventListener('resize', initFireflies);
+                initFireflies();
+                animateFireflies();
             }
         });
     </script>
