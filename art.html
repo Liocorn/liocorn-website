@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liocorn | Art & Studio Gallery</title>
+    <meta name="description" content="Official art and studio gallery for Liocorn. Original pieces and prints.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0a0a0a',
+                        surface: '#171717',
+                        accent: '#d4af37', // Gold accent for art gallery feel
+                        accentHover: '#f3e5ab'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Playfair Display', 'Georgia', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-serif { font-family: 'Playfair Display', serif; }
+        
+        .artwork-card {
+            transition: all 0.5s ease;
+        }
+        .artwork-image {
+            transition: transform 0.7s ease;
+        }
+        .artwork-card:hover .artwork-image {
+            transform: scale(1.05);
+        }
+        .overlay {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .artwork-card:hover .overlay {
+            opacity: 1;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d4af37; }
+    </style>
+</head>
+<body class="bg-background text-gray-200 antialiased">
+
+    <!-- Navigation -->
+    <nav class="border-b border-white/10 backdrop-blur-md sticky top-0 z-50 bg-background/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center">
+                    <a href="index.html" class="flex items-center text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                        Back to Tools
+                    </a>
+                </div>
+                <div class="flex items-center space-x-8">
+                    <span class="text-2xl font-serif tracking-widest text-white">LIOCORN<span class="text-accent">ART</span></span>
+                </div>
+                <div class="hidden md:flex space-x-6">
+                    <a href="#gallery" class="text-sm tracking-widest uppercase hover:text-accent transition-colors">Gallery</a>
+                    <a href="#artist" class="text-sm tracking-widest uppercase hover:text-accent transition-colors">Artist</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="relative py-32 flex items-center justify-center min-h-[60vh] border-b border-white/5 overflow-hidden">
+        <div class="absolute inset-0 z-0">
+            <img src="https://images.unsplash.com/photo-1543857778-c4a1a3e0b2eb?auto=format&fit=crop&q=80&w=1920" alt="Studio Background" class="w-full h-full object-cover opacity-10 blur-sm">
+            <div class="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent"></div>
+        </div>
+        <div class="relative z-10 text-center px-4 max-w-4xl mx-auto">
+            <h1 class="text-5xl md:text-7xl font-serif text-white mb-6 tracking-tight">Art & Studio Gallery</h1>
+            <p class="text-xl md:text-2xl text-gray-400 font-light max-w-2xl mx-auto mb-10">Original pieces, limited prints, and visual explorations bridging digital structure and fluid expression.</p>
+            <a href="#gallery" class="inline-block border border-accent text-accent px-8 py-4 uppercase tracking-widest text-sm hover:bg-accent hover:text-background transition-colors duration-300">Enter Exhibition</a>
+        </div>
+    </section>
+
+    <!-- Gallery Grid -->
+    <section id="gallery" class="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-end mb-12">
+            <h2 class="text-3xl font-serif text-white">Featured Works</h2>
+            <div class="flex space-x-4 text-sm tracking-wider uppercase text-gray-500">
+                <span class="text-accent cursor-pointer">All</span>
+                <span class="hover:text-white cursor-pointer transition-colors">Originals</span>
+                <span class="hover:text-white cursor-pointer transition-colors">Prints</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            <!-- Artwork 1 -->
+            <div class="artwork-card group cursor-pointer">
+                <div class="relative overflow-hidden aspect-[4/5] bg-surface mb-6">
+                    <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=800" alt="Ethereal Waves" class="artwork-image w-full h-full object-cover">
+                    <!-- Overlay -->
+                    <div class="overlay absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
+                        <button class="bg-white text-black px-6 py-3 font-medium tracking-wide hover:bg-accent hover:text-white transition-colors duration-300">View Piece</button>
+                    </div>
+                </div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-serif text-white mb-1">Ethereal Waves</h3>
+                        <p class="text-gray-500 text-sm mb-1">Acrylic on Canvas</p>
+                        <p class="text-gray-500 text-sm">24" × 36"</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-accent font-medium mb-3">$1,200</p>
+                        <button class="text-xs uppercase tracking-widest border-b border-gray-600 hover:border-white text-gray-400 hover:text-white pb-1 transition-colors">Purchase</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Artwork 2 -->
+            <div class="artwork-card group cursor-pointer">
+                <div class="relative overflow-hidden aspect-[4/5] bg-surface mb-6">
+                    <img src="https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800" alt="Digital Fragments" class="artwork-image w-full h-full object-cover">
+                    <div class="overlay absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
+                        <button class="bg-white text-black px-6 py-3 font-medium tracking-wide hover:bg-accent hover:text-white transition-colors duration-300">View Piece</button>
+                    </div>
+                </div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-serif text-white mb-1">Digital Fragments</h3>
+                        <p class="text-gray-500 text-sm mb-1">Archival Pigment Print</p>
+                        <p class="text-gray-500 text-sm">16" × 20"</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-accent font-medium mb-3">$150</p>
+                        <button class="text-xs uppercase tracking-widest border-b border-gray-600 hover:border-white text-gray-400 hover:text-white pb-1 transition-colors">Purchase</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Artwork 3 -->
+            <div class="artwork-card group cursor-pointer">
+                <div class="relative overflow-hidden aspect-[4/5] bg-surface mb-6">
+                    <img src="https://images.unsplash.com/photo-1536924940846-227afb31e2a5?auto=format&fit=crop&q=80&w=800" alt="Liquid State" class="artwork-image w-full h-full object-cover">
+                    <div class="overlay absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
+                        <button class="bg-white text-black px-6 py-3 font-medium tracking-wide hover:bg-accent hover:text-white transition-colors duration-300">View Piece</button>
+                    </div>
+                </div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-serif text-white mb-1">Liquid State</h3>
+                        <p class="text-gray-500 text-sm mb-1">Mixed Media / Resin</p>
+                        <p class="text-gray-500 text-sm">30" × 30"</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-accent font-medium mb-3">$2,100</p>
+                        <button class="text-xs uppercase tracking-widest border-b border-gray-600 hover:border-white text-gray-400 hover:text-white pb-1 transition-colors">Purchase</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Artwork 4 -->
+            <div class="artwork-card group cursor-pointer">
+                <div class="relative overflow-hidden aspect-[4/5] bg-surface mb-6">
+                    <img src="https://images.unsplash.com/photo-1557672172-298e090bd0f1?auto=format&fit=crop&q=80&w=800" alt="Neon Contrast" class="artwork-image w-full h-full object-cover">
+                    <div class="overlay absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
+                        <button class="bg-white text-black px-6 py-3 font-medium tracking-wide hover:bg-accent hover:text-white transition-colors duration-300">View Piece</button>
+                    </div>
+                </div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-serif text-white mb-1">Neon Contrast</h3>
+                        <p class="text-gray-500 text-sm mb-1">Oil on Panel</p>
+                        <p class="text-gray-500 text-sm">18" × 24"</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-accent font-medium mb-3">$950</p>
+                        <button class="text-xs uppercase tracking-widest border-b border-gray-600 hover:border-white text-gray-400 hover:text-white pb-1 transition-colors">Purchase</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Artwork 5 -->
+            <div class="artwork-card group cursor-pointer">
+                <div class="relative overflow-hidden aspect-[4/5] bg-surface mb-6">
+                    <img src="https://images.unsplash.com/photo-1580136608260-4eb11f4b24fe?auto=format&fit=crop&q=80&w=800" alt="Structural Memory" class="artwork-image w-full h-full object-cover">
+                    <div class="overlay absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
+                        <button class="bg-white text-black px-6 py-3 font-medium tracking-wide hover:bg-accent hover:text-white transition-colors duration-300">View Piece</button>
+                    </div>
+                </div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-serif text-white mb-1">Structural Memory</h3>
+                        <p class="text-gray-500 text-sm mb-1">Charcoal & Ink</p>
+                        <p class="text-gray-500 text-sm">11" × 14"</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-accent font-medium mb-3">$400</p>
+                        <button class="text-xs uppercase tracking-widest border-b border-gray-600 hover:border-white text-gray-400 hover:text-white pb-1 transition-colors">Purchase</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Artwork 6 -->
+            <div class="artwork-card group cursor-pointer">
+                <div class="relative overflow-hidden aspect-[4/5] bg-surface mb-6">
+                    <img src="https://images.unsplash.com/photo-1543857778-c4a1a3e0b2eb?auto=format&fit=crop&q=80&w=800" alt="Golden Void" class="artwork-image w-full h-full object-cover">
+                    <div class="overlay absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[2px]">
+                        <button class="bg-white text-black px-6 py-3 font-medium tracking-wide hover:bg-accent hover:text-white transition-colors duration-300">View Piece</button>
+                    </div>
+                </div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-serif text-white mb-1">Golden Void</h3>
+                        <p class="text-gray-500 text-sm mb-1">Gold Leaf & Acrylic</p>
+                        <p class="text-gray-500 text-sm">40" × 40"</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-accent font-medium mb-3">$3,500</p>
+                        <button class="text-xs uppercase tracking-widest border-b border-gray-600 hover:border-white text-gray-400 hover:text-white pb-1 transition-colors">Inquire</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Artist Bio -->
+    <section id="artist" class="py-24 bg-surface border-y border-white/5">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center gap-16">
+                <div class="w-48 h-48 md:w-72 md:h-72 rounded-full overflow-hidden shrink-0 border-4 border-background">
+                    <img src="https://images.unsplash.com/photo-1518063319789-7217e6706b04?auto=format&fit=crop&q=80&w=800" alt="Artist Portrait" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700">
+                </div>
+                <div>
+                    <h2 class="text-sm tracking-widest uppercase text-accent mb-2">The Artist</h2>
+                    <h3 class="text-4xl font-serif text-white mb-6">Behind the Canvas</h3>
+                    <p class="text-gray-300 mb-6 font-light leading-relaxed text-lg">
+                        I am an artist and developer exploring the intersection of precise logic and chaotic beauty. When I'm not writing tools for the Unity engine at Liocorn, I pour my creative energy into physical mediums. My work contrasts the strict architectures of code with the unpredictable nature of fluid acrylics, resin, and gold leaf.
+                    </p>
+                    <div class="flex space-x-6">
+                        <a href="https://github.com/Liocorn" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition-colors">
+                            <span class="sr-only">GitHub</span>
+                            <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" /></svg>
+                        </a>
+                        <a href="https://soundcloud.com/massjr" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-accent transition-colors">
+                            <span class="sr-only">SoundCloud</span>
+                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M11.83 13.911h-.694V8.653c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258v5.258zm-1.89-4.832v4.832h-.694V9.61c0-.142.115-.258.258-.258h.179c.142 0 .257.116.257.258v-.531zm-1.89 1.139v3.693h-.695v-3.693c0-.142.115-.258.257-.258h.18c.142 0 .258.116.258.258v-.002zm-1.892.428v3.265h-.693v-3.265c0-.142.115-.258.258-.258h.178c.142 0 .257.116.257.258zm-1.89.577v2.688h-.694v-2.688c0-.142.116-.258.258-.258h.178c.142 0 .258.116.258.258v-.001zm-1.892.203v2.485h-.693v-2.485c0-.142.115-.258.257-.258h.179c.142 0 .257.116.257.258v-.001zm-1.891-.497v2.982h-.694v-2.982c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258zM0 13.911h.473V11.23c0-.142.115-.258.258-.258h.178c.142 0 .258.116.258.258v2.681zm22.47-5.258c-.979 0-1.815.602-2.164 1.45h-.265v3.808h3.486c.26 0 .473-.213.473-.473v-4.312c0-.26-.213-.473-.473-.473h-1.057zm-3.824-2.822v8.08h-.695v-8.08c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258v-.001zm-1.892-1.921v10.001h-.694V3.91c0-.142.116-.258.258-.258h.178c.142 0 .258.116.258.258zm-1.89-1.916v11.917h-.694V1.994c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258zm-1.891 1.096v10.821h-.694V3.09c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258v-.001zm-1.892 1.341v9.48h-.693V4.431c0-.142.115-.258.258-.258h.178c.142 0 .257.116.257.258v.001z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-10 text-center text-gray-500">
+        <p class="text-sm">© 2026 Liocorn Art Gallery. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>
