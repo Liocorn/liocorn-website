@@ -36,6 +36,17 @@
         .glow { box-shadow: 0 0 20px rgba(0, 229, 255, 0.3); }
         .glow-text { text-shadow: 0 0 10px rgba(0, 229, 255, 0.5); }
         
+        /* Float Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+            will-change: transform;
+        }
+        
         /* WebGL Caustics Canvas */
         #caustics-canvas {
             position: fixed;
@@ -140,7 +151,7 @@
                 <p class="text-gray-400">Watch our tools transform the Unity editor experience.</p>
             </div>
             
-            <div class="bg-background rounded-xl p-2 border border-surface glow reveal delay-200">
+            <div class="bg-background rounded-xl p-2 border border-surface glow reveal delay-200 animate-float">
                 <div class="aspect-w-16 rounded-lg overflow-hidden relative">
                     <iframe 
                         src="https://www.youtube.com/embed/sATvnS09Rlo?autoplay=0&rel=0" 
@@ -243,12 +254,14 @@
                     <p class="text-gray-300 mb-6 leading-relaxed">
                         Passionate about breaking down the barriers between imagination and playable realities. I build tools that empower Unity developers to focus on the fun parts of game creation, automating the tedious workflows and bringing intelligent assistance directly into the editor.
                     </p>
-                    <a href="https://soundcloud.com/massjr" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-gray-300 hover:text-accent transition-colors duration-300">
-                        <svg class="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M11.83 13.911h-.694V8.653c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258v5.258zm-1.89-4.832v4.832h-.694V9.61c0-.142.115-.258.258-.258h.179c.142 0 .257.116.257.258v-.531zm-1.89 1.139v3.693h-.695v-3.693c0-.142.115-.258.257-.258h.18c.142 0 .258.116.258.258v-.002zm-1.892.428v3.265h-.693v-3.265c0-.142.115-.258.258-.258h.178c.142 0 .257.116.257.258zm-1.89.577v2.688h-.694v-2.688c0-.142.116-.258.258-.258h.178c.142 0 .258.116.258.258v-.001zm-1.892.203v2.485h-.693v-2.485c0-.142.115-.258.257-.258h.179c.142 0 .257.116.257.258v-.001zm-1.891-.497v2.982h-.694v-2.982c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258zM0 13.911h.473V11.23c0-.142.115-.258.258-.258h.178c.142 0 .258.116.258.258v2.681zm22.47-5.258c-.979 0-1.815.602-2.164 1.45h-.265v3.808h3.486c.26 0 .473-.213.473-.473v-4.312c0-.26-.213-.473-.473-.473h-1.057zm-3.824-2.822v8.08h-.695v-8.08c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258v-.001zm-1.892-1.921v10.001h-.694V3.91c0-.142.116-.258.258-.258h.178c.142 0 .258.116.258.258zm-1.89-1.916v11.917h-.694V1.994c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258zm-1.891 1.096v10.821h-.694V3.09c0-.142.115-.258.257-.258h.18c.142 0 .257.116.257.258v-.001zm-1.892 1.341v9.48h-.693V4.431c0-.142.115-.258.258-.258h.178c.142 0 .257.116.257.258v.001z"/>
-                        </svg>
-                        Listen to my tracks on SoundCloud
-                    </a>
+                    <div class="mt-6 reveal delay-200">
+                        <h4 class="text-sm font-semibold text-accent mb-3 uppercase tracking-wider">Latest Tracks</h4>
+                        <div class="rounded-lg overflow-hidden border border-surface glow">
+                            <iframe width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" 
+                                src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/massjr&color=%2300E5FF&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false">
+                            </iframe>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -449,14 +462,22 @@
             });
         });
 
-        // Simple Parallax & 3D scrolling effect for Hero section
+        // Scroll interactions
         const heroContent = document.querySelector('.hero-content');
         window.addEventListener('scroll', () => {
             const scrolled = window.scrollY;
+            
+            // Hero parallax effect
             if(scrolled < 800 && heroContent) {
                 // Creates a feeling of falling backwards into the page as you scroll down
                 heroContent.style.transform = `translateY(${scrolled * 0.4}px) rotateX(${scrolled * 0.05}deg) scale(${1 - scrolled*0.0005})`;
                 heroContent.style.opacity = 1 - (scrolled * 0.002);
+            }
+            
+            // Fade out WebGL caustics further down the page
+            if (canvas) {
+                const causticsOpacity = Math.max(0.15, 0.8 - (scrolled * 0.0005));
+                canvas.style.opacity = causticsOpacity;
             }
         });
     </script>
