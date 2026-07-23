@@ -49,14 +49,25 @@
         
         /* Removed CSS Aurora keyframes in favor of WebGL */
         
-        @keyframes flicker {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-            25%, 75% { opacity: 0.8; }
+        @keyframes flicker-candle {
+            0%, 100% { opacity: 0.9; fill: #f59e0b; }
+            20% { opacity: 0.6; fill: #ea580c; }
+            40% { opacity: 0.8; fill: #ef4444; }
+            60% { opacity: 0.5; fill: #f59e0b; }
+            80% { opacity: 1.0; fill: #ea580c; }
         }
-        .animate-flicker-1 { animation: flicker 4s ease-in-out infinite; }
-        .animate-flicker-2 { animation: flicker 5s ease-in-out infinite 1s; }
-        .animate-flicker-3 { animation: flicker 3s ease-in-out infinite 2s; }
+        .animate-flicker-1 { animation: flicker-candle 3s infinite alternate; }
+        .animate-flicker-2 { animation: flicker-candle 4s infinite alternate-reverse; }
+        .animate-flicker-3 { animation: flicker-candle 2.5s infinite alternate; }
+        .animate-flicker-4 { animation: flicker-candle 5s infinite alternate-reverse; }
+
+        @keyframes sway {
+            0%, 100% { transform: rotate(-2deg); }
+            50% { transform: rotate(2deg); }
+        }
+        .sway-1 { transform-origin: bottom center; animation: sway 6s ease-in-out infinite; }
+        .sway-2 { transform-origin: bottom center; animation: sway 8s ease-in-out infinite 1s; }
+        .sway-3 { transform-origin: bottom center; animation: sway 7s ease-in-out infinite 2s; }
 
         /* 3D Scroll Reveal Classes */
         .perspective-container {
@@ -124,31 +135,18 @@
 
         <!-- Forest (Layer 2) -->
         <div class="parallax-layer absolute bottom-0 w-full h-[40vh] z-20" data-speed="0.25">
-            <svg viewBox="0 0 1000 200" preserveAspectRatio="none" class="w-full h-full text-[#0D0A20]">
-                <path d="M0,200 L0,120 L20,80 L30,130 L50,70 L70,140 L90,60 L110,130 L140,50 L160,120 L190,40 L210,110 L240,60 L260,130 L290,50 L310,140 L340,70 L370,130 L400,40 L430,120 L460,60 L490,130 L530,50 L560,140 L600,60 L630,120 L660,40 L690,130 L730,70 L760,140 L800,50 L830,120 L870,40 L900,130 L940,60 L970,140 L1000,80 L1000,200 Z" fill="currentColor"/>
+            <svg id="forest-svg" viewBox="0 0 1000 200" preserveAspectRatio="none" class="w-full h-full text-[#0D0A20]">
+                <!-- Filled dynamically by JS -->
+                <rect width="1000" height="80" y="120" fill="currentColor"/>
             </svg>
         </div>
 
         <!-- Front Hills & Homes (Layer 3) -->
         <div class="parallax-layer absolute bottom-0 w-full h-[25vh] z-30" data-speed="0.4">
-            <svg viewBox="0 0 1000 150" preserveAspectRatio="none" class="w-full h-full">
-                <!-- Left Hill -->
-                <path d="M0,150 L0,50 Q200,-20 450,80 L450,150 Z" fill="#060410"/>
-                <!-- Right Hill -->
+            <svg id="hills-svg" viewBox="0 0 1000 150" preserveAspectRatio="none" class="w-full h-full text-[#060410]">
+                <!-- Trees and houses filled dynamically -->
+                <path d="M0,150 L0,50 Q200,-20 450,80 L450,150 Z" fill="currentColor"/>
                 <path d="M350,150 L350,100 Q650,10 1000,60 L1000,150 Z" fill="#030509"/>
-                
-                <!-- Home 1 (Left Hill) -->
-                <rect x="200" y="45" width="25" height="20" fill="#020306"/>
-                <polygon points="195,45 212.5,30 230,45" fill="#020306"/>
-                <rect x="205" y="52" width="4" height="6" fill="#FDE047" class="animate-flicker-1"/>
-                <rect x="215" y="52" width="4" height="6" fill="#FDE047" class="animate-flicker-2"/>
-
-                <!-- Home 2 (Right Hill) -->
-                <rect x="700" y="45" width="30" height="25" fill="#020306"/>
-                <polygon points="690,45 715,25 740,45" fill="#020306"/>
-                <rect x="705" y="55" width="6" height="8" fill="#FEF08A" class="animate-flicker-3"/>
-                <rect x="718" y="55" width="6" height="8" fill="#FEF08A" class="animate-flicker-1"/>
-                <rect x="718" y="47" width="4" height="4" fill="#FDE047" class="animate-flicker-2"/>
             </svg>
         </div>
     </div>
@@ -377,15 +375,23 @@
                         q.x += t * (0.2 + i * 0.1);
                         q.y += sin(q.x * 2.0 + t + i) * 0.2 + 0.5;
                         
-                        float intensity = abs(1.0 / (50.0 * (uv.y - q.y)));
-                        float curtains = sin(q.x * 20.0 + t * 5.0) * 0.5 + 0.5;
-                        intensity *= (0.5 + 0.5 * curtains);
+                        float dist = uv.y - q.y;
+                        float intensity = 0.0;
+                        if (dist > 0.0) {
+                            intensity = exp(-dist * 15.0); // smooth blend up
+                        } else {
+                            intensity = exp(dist * 120.0); // sharp cut off bottom
+                        }
                         
-                        vec3 ribbonColor = mix(vec3(0.0, 1.0, 0.6), vec3(0.2, 0.3, 1.0), i / 4.0);
-                        col += intensity * ribbonColor * 0.15;
+                        float curtains = sin(q.x * 25.0 - t * 5.0) * 0.5 + 0.5;
+                        intensity *= (0.3 + 0.7 * curtains);
+                        
+                        vec3 ribbonColor = mix(vec3(0.1, 1.0, 0.5), vec3(0.5, 0.2, 1.0), i / 5.0);
+                        float globalPulse = sin(t * 1.5) * 0.5 + 0.8;
+                        col += intensity * ribbonColor * 0.5 * globalPulse;
                     }
-                    col *= smoothstep(0.0, 0.4, uv.y) * smoothstep(1.0, 0.5, uv.y);
-                    gl_FragColor = vec4(col, 1.0);
+                    col *= smoothstep(0.1, 0.5, uv.y) * smoothstep(1.0, 0.4, uv.y);
+                    gl_FragColor = vec4(col * 2.5, 1.0);
                 }
             `;
             const initShader = (gl, type, source) => {
@@ -488,13 +494,17 @@
             
             // Draw interactive constellations
             for (let i = 0; i < stars.length; i++) {
-                // Check distance to mouse
                 let dxMouse = stars[i].x - mouseX;
                 let dyMouse = stars[i].y - mouseY;
                 let distMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
                 
                 if (distMouse < mouseRadius) {
+                    // Star gets brighter when highlighted
+                    stars[i].baseAlpha = Math.min(1.0, stars[i].baseAlpha + 0.05);
+                    
+                    let connections = 0;
                     for (let j = i + 1; j < stars.length; j++) {
+                        if (connections >= 2) break; // Limit density
                         let dx = stars[i].x - stars[j].x;
                         let dy = stars[i].y - stars[j].y;
                         let dist = Math.sqrt(dx * dx + dy * dy);
@@ -503,16 +513,19 @@
                             ctx.beginPath();
                             ctx.moveTo(stars[i].x, stars[i].y);
                             ctx.lineTo(stars[j].x, stars[j].y);
-                            // Fade based on distance to each other AND distance to mouse
+                            
                             let alphaDist = (1 - dist / maxDistance);
                             let alphaMouse = (1 - distMouse / mouseRadius);
-                            let alpha = alphaDist * alphaMouse * 0.5;
+                            let alpha = alphaDist * alphaMouse * 0.8; // brighter edges
                             
                             ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-                            ctx.lineWidth = 0.6;
+                            ctx.lineWidth = 1.0; // thicker edges
                             ctx.stroke();
+                            connections++;
                         }
                     }
+                } else {
+                    stars[i].baseAlpha = Math.max(0.1, stars[i].baseAlpha - 0.01);
                 }
             }
             requestAnimationFrame(drawStars);
@@ -582,6 +595,69 @@
                 const speed = parseFloat(layer.getAttribute('data-speed'));
                 layer.style.transform = `translateY(${-scrolled * speed}px)`;
             });
+        });
+
+        // Generate Trees and Houses Dynamically
+        document.addEventListener('DOMContentLoaded', () => {
+            const createEl = (tag, attrs) => {
+                const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+                for (const k in attrs) el.setAttribute(k, attrs[k]);
+                return el;
+            };
+            
+            // Forest Layer (Layer 2)
+            const forest = document.getElementById('forest-svg');
+            if (forest) {
+                forest.innerHTML = '<rect width="1000" height="100" y="100" fill="currentColor"/>';
+                for (let i = 0; i < 60; i++) {
+                    const x = Math.random() * 1050 - 25;
+                    const scale = Math.random() * 0.6 + 0.4;
+                    const y = 140 - (scale * 50) + (Math.random() * 20);
+                    const tree = createEl('g', { transform: `translate(${x}, ${y}) scale(${scale})` });
+                    tree.innerHTML = `<path d="M0,-40 Q5,-25 15,-20 Q5,-20 10,-5 Q20,-5 25,0 L-25,0 Q-20,-5 -10,-5 Q-5,-20 -15,-20 Q-5,-25 0,-40 Z" fill="currentColor" class="sway-${Math.floor(Math.random()*3)+1}"/>`;
+                    forest.appendChild(tree);
+                }
+            }
+            
+            // Hills Layer (Layer 3)
+            const hills = document.getElementById('hills-svg');
+            if (hills) {
+                hills.innerHTML = `
+                    <path d="M0,150 L0,50 Q200,-20 450,80 L450,150 Z" fill="currentColor"/>
+                    <path d="M350,150 L350,100 Q650,10 1000,60 L1000,150 Z" fill="#030509"/>
+                `;
+                
+                // Houses
+                for (let i = 0; i < 12; i++) {
+                    const isLeft = Math.random() > 0.5;
+                    const x = isLeft ? Math.random() * 300 + 30 : Math.random() * 400 + 450;
+                    const scale = Math.random() * 0.4 + 0.3;
+                    
+                    let base_y = isLeft ? 50 + (x/300)*25 : 80 - ((x-450)/400)*35;
+                    base_y += Math.random() * 15;
+                    
+                    const house = createEl('g', { transform: `translate(${x}, ${base_y}) scale(${scale})` });
+                    house.innerHTML = `
+                        <rect x="-10" y="-15" width="20" height="15" fill="#020105"/>
+                        <polygon points="-12,-15 0,-25 12,-15" fill="#020105"/>
+                        <rect x="-6" y="-8" width="4" height="5" class="animate-flicker-${Math.floor(Math.random()*4)+1}"/>
+                        <rect x="2" y="-8" width="4" height="5" class="animate-flicker-${Math.floor(Math.random()*4)+1}"/>
+                    `;
+                    hills.appendChild(house);
+                }
+                
+                // Foreground Trees
+                for (let i = 0; i < 40; i++) {
+                    const x = Math.random() * 1050 - 25;
+                    const scale = Math.random() * 0.8 + 0.5;
+                    let base_y = x < 400 ? 70 + (x/300)*20 : 100 - ((x-500)/400)*30;
+                    base_y += Math.random() * 20 + 20;
+                    
+                    const tree = createEl('g', { transform: `translate(${x}, ${base_y}) scale(${scale})` });
+                    tree.innerHTML = `<path d="M0,-40 Q5,-25 15,-20 Q5,-20 10,-5 Q20,-5 25,0 L-25,0 Q-20,-5 -10,-5 Q-5,-20 -15,-20 Q-5,-25 0,-40 Z" fill="#020104" class="sway-${Math.floor(Math.random()*3)+1}"/>`;
+                    hills.appendChild(tree);
+                }
+            }
         });
     </script>
 </body>
