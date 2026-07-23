@@ -710,6 +710,8 @@ void main() {
             // --- Abstract Raymarching Background ---
             const abstractCanvas = document.getElementById('abstract-canvas');
             if (abstractCanvas) {
+                // Increase opacity so it's more visible
+                abstractCanvas.className = "absolute inset-0 z-0 mix-blend-screen opacity-60 pointer-events-none";
                 const agl = abstractCanvas.getContext('webgl', { alpha: false, preserveDrawingBuffer: false });
                 if (agl) {
                     const avsSource = `
@@ -744,7 +746,9 @@ void main() {
                             float PSD = pow(sin(u_time * 0.5) * 0.5 + 0.5, 2.0) * 0.25;
                             vec4 c = vec4(0.0, 0.0, 0.0, 1.0);
                             
-                            for (float i = 1.0; i > 0.0; i -= 0.02) {
+                            // WebGL1 requires integer loops with constant bounds
+                            for (int iter = 0; iter < 50; iter++) {
+                                float i = 1.0 - float(iter) * 0.02;
                                 p = ro + rd * d;
                                 
                                 vec2 pzy = p.zy; r(pzy, u_time * 0.2); p.zy = pzy;
@@ -767,6 +771,9 @@ void main() {
                         const s = agl.createShader(type);
                         agl.shaderSource(s, src);
                         agl.compileShader(s);
+                        if (!agl.getShaderParameter(s, agl.COMPILE_STATUS)) {
+                            console.error("Abstract Shader Error: " + agl.getShaderInfoLog(s));
+                        }
                         return s;
                     };
 
