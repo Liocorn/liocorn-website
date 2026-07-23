@@ -36,8 +36,8 @@
         .glow { box-shadow: 0 0 20px rgba(0, 229, 255, 0.3); }
         .glow-text { text-shadow: 0 0 10px rgba(0, 229, 255, 0.5); }
         
-        /* Animated Sea Caustics Effect */
-        .caustics-container {
+        /* WebGL Caustics Canvas */
+        #caustics-canvas {
             position: fixed;
             top: 0;
             left: 0;
@@ -45,51 +45,8 @@
             height: 100vh;
             pointer-events: none;
             z-index: 0;
-            opacity: 0.6;
             mix-blend-mode: screen;
-            overflow: hidden;
-            background: radial-gradient(circle at center, rgba(0, 229, 255, 0.3) 0%, transparent 80%);
-        }
-        
-        /* We use multiple background layers panning in different directions to simulate water refractions */
-        .caustics {
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background-image: 
-                repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(0, 229, 255, 0.6) 42px, transparent 48px),
-                repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(0, 229, 255, 0.6) 42px, transparent 48px),
-                repeating-linear-gradient(0deg, transparent, transparent 80px, rgba(0, 229, 255, 0.5) 85px, transparent 95px);
-            background-size: 200px 200px;
-            animation: moveCaustics 15s linear infinite;
-            filter: blur(4px);
-        }
-        
-        .caustics-layer-2 {
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background-image: 
-                repeating-linear-gradient(30deg, transparent, transparent 60px, rgba(0, 229, 255, 0.7) 63px, transparent 70px),
-                repeating-linear-gradient(-30deg, transparent, transparent 60px, rgba(0, 229, 255, 0.7) 63px, transparent 70px);
-            background-size: 250px 250px;
-            animation: moveCausticsReverse 20s linear infinite;
-            filter: blur(5px);
-        }
-
-        @keyframes moveCaustics {
-            0% { transform: rotate(0deg) translate(0, 0) scale(1); }
-            50% { transform: rotate(5deg) translate(-2%, 2%) scale(1.05); }
-            100% { transform: rotate(0deg) translate(0, 0) scale(1); }
-        }
-        @keyframes moveCausticsReverse {
-            0% { transform: rotate(0deg) translate(0, 0) scale(1); }
-            50% { transform: rotate(-5deg) translate(2%, -2%) scale(1.05); }
-            100% { transform: rotate(0deg) translate(0, 0) scale(1); }
+            opacity: 0.8;
         }
 
         /* 3D Scroll Reveal Classes */
@@ -127,11 +84,8 @@
 </head>
 <body class="bg-background text-gray-200 antialiased selection:bg-accent selection:text-background perspective-container">
 
-    <!-- Caustics Background -->
-    <div class="caustics-container">
-        <div class="caustics"></div>
-        <div class="caustics-layer-2"></div>
-    </div>
+    <!-- WebGL Voronoi Caustics Background -->
+    <canvas id="caustics-canvas"></canvas>
 
     <!-- Navigation -->
     <nav class="border-b border-surface/50 backdrop-blur-md sticky top-0 z-50">
@@ -329,6 +283,126 @@
 
     <!-- Interactive Scripts -->
     <script>
+        // WebGL Voronoi Caustics Shader (Unity Shader Graph equivalent)
+        const canvas = document.getElementById('caustics-canvas');
+        const gl = canvas.getContext('webgl');
+
+        if (gl) {
+            const vsSource = `
+                attribute vec4 aVertexPosition;
+                void main() {
+                    gl_Position = aVertexPosition;
+                }
+            `;
+
+            const fsSource = `
+                precision highp float;
+                uniform vec2 u_resolution;
+                uniform float u_time;
+
+                // 2D Random
+                vec2 hash(vec2 p) {
+                    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+                    return fract(sin(p) * 43758.5453);
+                }
+
+                // Voronoi Noise implementation
+                float voronoi(vec2 uv) {
+                    vec2 n = floor(uv);
+                    vec2 f = fract(uv);
+                    float m = 8.0;
+                    for(int j=-1; j<=1; j++) {
+                        for(int i=-1; i<=1; i++) {
+                            vec2 g = vec2(float(i), float(j));
+                            vec2 o = hash(n + g);
+                            // Animate the points
+                            o = 0.5 + 0.5 * sin(u_time * 0.5 + 6.2831 * o);
+                            vec2 r = g - f + o;
+                            float d = dot(r, r);
+                            m = min(m, d);
+                        }
+                    }
+                    return m;
+                }
+
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                    // Fix aspect ratio
+                    uv.x *= u_resolution.x / u_resolution.y;
+
+                    // Layer 1
+                    float v1 = voronoi(uv * 5.0 + vec2(u_time * 0.05, u_time * 0.1));
+                    // Layer 2 moving in opposite direction
+                    float v2 = voronoi(uv * 5.0 - vec2(u_time * 0.1, -u_time * 0.05));
+                    
+                    // Create caustics intersecting lines by multiplying and peaking
+                    float c = v1 * v2;
+                    c = pow(c, 1.5) * 4.0; // Sharpen the caustics
+                    
+                    // Deep electric cyan color (#00E5FF)
+                    vec3 col = vec3(0.0, 0.9, 1.0) * c * 0.5;
+                    
+                    // Fade out edges slightly like a vignette
+                    float vignette = 1.0 - smoothstep(0.5, 1.5, length(uv - vec2(0.5 * u_resolution.x / u_resolution.y, 0.5)));
+                    
+                    gl_FragColor = vec4(col * vignette, 1.0);
+                }
+            `;
+
+            const initShader = (gl, type, source) => {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                return shader;
+            };
+
+            const vertexShader = initShader(gl, gl.VERTEX_SHADER, vsSource);
+            const fragmentShader = initShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+            const shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+            gl.useProgram(shaderProgram);
+
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            const positions = [
+                 1.0,  1.0,
+                -1.0,  1.0,
+                 1.0, -1.0,
+                -1.0, -1.0,
+            ];
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+            const positionAttributeLocation = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+            const timeLocation = gl.getUniformLocation(shaderProgram, "u_time");
+            const resolutionLocation = gl.getUniformLocation(shaderProgram, "u_resolution");
+
+            const resizeCanvas = () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            };
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            let startTime = Date.now();
+            const render = () => {
+                const elapsedTime = (Date.now() - startTime) / 1000.0;
+                
+                gl.uniform1f(timeLocation, elapsedTime);
+                gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+                
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                requestAnimationFrame(render);
+            };
+            render();
+        }
+
         // Intersection Observer for Scroll Reveals
         const revealElements = document.querySelectorAll('.reveal');
         const revealObserver = new IntersectionObserver((entries) => {
