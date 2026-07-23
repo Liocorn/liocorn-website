@@ -425,20 +425,11 @@ float saturate(float x) {
 // Time behavior
 // ------------------------------------------------------------
 
-float movementPulse(float t) {
-  float a = 0.5 + 0.5 * sin(t * 0.23);
-  float b = 0.5 + 0.5 * sin(t * 0.071 + 2.4);
-  float c = 0.5 + 0.5 * sin(t * 0.41 + 1.1);
-
-  float pulse = a * 0.55 + b * 0.30 + c * 0.15;
-
-  return smoothstep(0.18, 0.95, pulse);
-}
-
 float animatedTime(float t) {
-  float pulse = movementPulse(t);
-  // Faster fast moments tweak applied
-  return t * mix(0.35, 2.65, pulse);
+  // Analytically integrated time function to fix the "crazily fast" glitch.
+  // Multiplying t by a varying value causes speed explosions over time.
+  // This provides a smooth, soothing motion that gracefully speeds up and slows down.
+  return t * 0.45 + 1.2 * sin(t * 0.15) + 1.8 * sin(t * 0.05);
 }
 
 // ------------------------------------------------------------
