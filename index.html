@@ -135,10 +135,7 @@
 
         <!-- Forest (Layer 2) -->
         <div class="parallax-layer absolute bottom-0 w-full h-[40vh] z-20" data-speed="0.25">
-            <svg id="forest-svg" viewBox="0 0 1000 200" preserveAspectRatio="none" class="w-full h-full text-[#0D0A20]">
-                <!-- Filled dynamically by JS -->
-                <rect width="1000" height="80" y="120" fill="currentColor"/>
-            </svg>
+            <canvas id="forest-canvas" class="w-full h-full pointer-events-none"></canvas>
         </div>
 
         <!-- Front Hills & Homes (Layer 3) -->
@@ -906,18 +903,176 @@ void main() {
                 return el;
             };
             
-            // Forest Layer (Layer 2)
-            const forest = document.getElementById('forest-svg');
-            if (forest) {
-                forest.innerHTML = '<rect width="1000" height="100" y="100" fill="currentColor"/>';
-                for (let i = 0; i < 60; i++) {
-                    const x = Math.random() * 1050 - 25;
-                    const scale = Math.random() * 0.6 + 0.4;
-                    const y = 140 - (scale * 50) + (Math.random() * 20);
-                    const tree = createEl('g', { transform: `translate(${x}, ${y}) scale(${scale})` });
-                    tree.innerHTML = `<path d="M0,-40 Q5,-25 15,-20 Q5,-20 10,-5 Q20,-5 25,0 L-25,0 Q-20,-5 -10,-5 Q-5,-20 -15,-20 Q-5,-25 0,-40 Z" fill="currentColor" class="sway-${Math.floor(Math.random()*3)+1}"/>`;
-                    forest.appendChild(tree);
+            // Procedural Forest Layer (Layer 2)
+            const fCanvas = document.getElementById("forest-canvas");
+            if (fCanvas) {
+                const fctx = fCanvas.getContext("2d");
+                let fTrees = [];
+
+                function seededRandom(seed) {
+                  const x = Math.sin(seed * 127.1) * 43758.5453123;
+                  return x - Math.floor(x);
                 }
+
+                function fSmoothStep(edge0, edge1, x) {
+                  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+                  return t * t * (3 - 2 * t);
+                }
+
+                function createTrees(width, height) {
+                  fTrees = [];
+                  const averageSpacing = width < 700 ? 95 : 112;
+                  const treeCount = Math.floor(width / averageSpacing) + 5;
+
+                  for (let i = 0; i < treeCount; i++) {
+                    const depth = seededRandom(i + 4.71);
+                    const spacing = (width + 160) / treeCount;
+                    const x = -80 + i * spacing + (seededRandom(i + 1.13) - 0.5) * spacing * 0.42;
+                    const baseY = height * (0.935 + depth * 0.055 + (seededRandom(i + 44.12) - 0.5) * 0.015);
+                    const treeHeight = height * (0.17 + seededRandom(i + 9.22) * 0.09 + depth * 0.08);
+                    const treeWidth = treeHeight * (0.28 + seededRandom(i + 14.91) * 0.08);
+
+                    fTrees.push({
+                      x, baseY, height: treeHeight, width: treeWidth, depth,
+                      phaseOffset: (seededRandom(i + 21.37) - 0.5) * 0.55,
+                      strengthOffset: 0.86 + seededRandom(i + 31.55) * 0.28,
+                      speedOffset: 0.94 + seededRandom(i + 72.31) * 0.12,
+                      asymmetry: -0.14 + seededRandom(i + 91.7) * 0.28,
+                      layers: 5 + Math.floor(seededRandom(i + 61.77) * 2)
+                    });
+                  }
+                  fTrees.sort((a, b) => a.depth - b.depth);
+                }
+
+                function bendAtHeight(totalBend, yNorm, tipBend, waveBend) {
+                  return totalBend * Math.pow(yNorm, 1.32) + tipBend * Math.pow(yNorm, 2.45) + waveBend * Math.sin(yNorm * Math.PI * 1.08) * Math.pow(yNorm, 1.08);
+                }
+
+                function drawCurvedPineLayer({ tipX, tipY, baseX, baseY, width, height, curve, droop, skew }) {
+                  const half = width * 0.5;
+                  fctx.beginPath();
+                  fctx.moveTo(tipX, tipY);
+                  fctx.quadraticCurveTo(tipX - half * (0.42 + curve * 0.10) + skew, tipY + height * (0.34 + curve * 0.10), baseX - half, baseY);
+                  fctx.quadraticCurveTo(baseX + skew * 0.35, baseY + height * droop, baseX + half, baseY);
+                  fctx.quadraticCurveTo(tipX + half * (0.42 + curve * 0.10) + skew, tipY + height * (0.34 + curve * 0.10), tipX, tipY);
+                  fctx.closePath();
+                  fctx.fill();
+                }
+
+                function globalWindAt(x, width, time, tree) {
+                  const t = time * 0.001;
+                  const normalizedX = x / width;
+
+                  const baseWaveA = Math.sin(normalizedX * 4.2 - t * 0.34 + tree.phaseOffset) * 0.25;
+                  const baseWaveB = Math.sin(normalizedX * 7.1 - t * 0.51 + tree.phaseOffset * 1.7) * 0.13;
+                  const wanderingNoise = Math.sin(normalizedX * 2.3 + t * 0.17 + tree.phaseOffset * 2.1) * 0.5 + Math.sin(normalizedX * 5.7 - t * 0.11 + tree.phaseOffset * 0.9) * 0.5;
+                  const irregularity = 0.82 + 0.18 * wanderingNoise;
+
+                  const cycleDuration = 7.2;
+                  const cycle = (t % cycleDuration) / cycleDuration;
+                  const leftToRightCenter = -0.35 + cycle * 1.70;
+                  const leftToRightDistance = normalizedX - leftToRightCenter;
+                  const leftToRightFront = Math.exp(-(leftToRightDistance * leftToRightDistance) / 0.014);
+                  const leftToRightEnvelope = fSmoothStep(0.02, 0.14, cycle) * (1.0 - fSmoothStep(0.86, 0.99, cycle));
+                  const leftToRightGust = leftToRightFront * leftToRightEnvelope * 1.55;
+
+                  const reverseCycleDuration = 13.5;
+                  const reverseCycle = ((t + 4.0) % reverseCycleDuration) / reverseCycleDuration;
+                  const rightToLeftCenter = 1.25 - reverseCycle * 1.55;
+                  const rightToLeftDistance = normalizedX - rightToLeftCenter;
+                  const rightToLeftFront = Math.exp(-(rightToLeftDistance * rightToLeftDistance) / 0.020);
+                  const rightToLeftEnvelope = fSmoothStep(0.05, 0.22, reverseCycle) * (1.0 - fSmoothStep(0.72, 0.95, reverseCycle));
+                  const rightToLeftGust = -rightToLeftFront * rightToLeftEnvelope * 0.90;
+
+                  const leftSettling = Math.sin(normalizedX * 8.5 - t * 0.95 + 1.2) * leftToRightFront * leftToRightEnvelope * 0.16;
+                  const rightSettling = Math.sin(normalizedX * 7.0 + t * 0.75 + 2.4) * rightToLeftFront * rightToLeftEnvelope * 0.12;
+
+                  const slowMagnitude = 0.82 + 0.18 * Math.sin(t * 0.095 + normalizedX * 0.9);
+
+                  return (baseWaveA + baseWaveB + leftToRightGust + rightToLeftGust + leftSettling + rightSettling) * slowMagnitude * irregularity * tree.strengthOffset;
+                }
+
+                function drawTree(tree, time) {
+                  const width = fCanvas.width;
+                  const x = tree.x;
+                  const baseY = tree.baseY;
+                  const h = tree.height;
+                  const w = tree.width;
+
+                  fctx.fillStyle = "#0D0A20"; // Match layer color
+
+                  const t = time * 0.001;
+                  const wind = globalWindAt(x, width, time, tree);
+                  const bendStrength = 17.0 * tree.speedOffset * (0.75 + tree.depth * 0.65);
+                  const totalBend = wind * bendStrength;
+
+                  const delayedWind = globalWindAt(x - 45, width, time - 220, tree);
+                  const tipBend = delayedWind * bendStrength * 0.38 * (0.65 + tree.depth * 0.55);
+                  const waveBend = Math.sin(t * 0.42 - x / width * 3.5 + tree.phaseOffset) * bendStrength * 0.13 * Math.min(1.2, Math.abs(wind));
+
+                  for (let i = 0; i < tree.layers; i++) {
+                    const u = i / (tree.layers - 1);
+                    const topNorm = 0.25 + u * 0.45;
+                    const tipY = baseY - h * topNorm;
+                    const layerHeight = h * (0.335 - u * 0.060);
+                    const baseNorm = Math.max(0.0, topNorm - layerHeight / h);
+
+                    const tipBendHere = bendAtHeight(totalBend, topNorm, tipBend, waveBend);
+                    const baseBendHere = bendAtHeight(totalBend, baseNorm, tipBend, waveBend);
+                    
+                    const localFlutter = Math.sin(t * 0.48 - x / width * 4.5 + u * 1.5 + tree.phaseOffset) * bendStrength * 0.010 * Math.pow(u, 1.8);
+                    const naturalOffset = Math.sin(tree.phaseOffset * 4.0 + i * 1.618) * w * 0.025 * (1.0 - u * 0.25);
+
+                    drawCurvedPineLayer({
+                      tipX: x + tipBendHere + localFlutter + naturalOffset,
+                      tipY,
+                      baseX: x + baseBendHere + localFlutter * 0.30 + naturalOffset * 0.55,
+                      baseY: tipY + layerHeight,
+                      width: w * (1.24 - u * 0.62),
+                      height: layerHeight,
+                      curve: 0.62 + (1.0 - u) * 0.34,
+                      droop: 0.13 + (1.0 - u) * 0.11,
+                      skew: wind * w * 0.070 * (0.35 + u * 0.85) + tree.asymmetry * w * 0.04
+                    });
+                  }
+
+                  fctx.beginPath();
+                  fctx.ellipse(x, baseY + h * 0.013, w * 0.18, h * 0.014, 0, 0, Math.PI * 2);
+                  fctx.fill();
+                }
+
+                function fResize() {
+                  const rect = fCanvas.parentElement.getBoundingClientRect();
+                  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                  const w = Math.floor(rect.width * dpr);
+                  const h = Math.floor(rect.height * dpr);
+                  if (fCanvas.width !== w || fCanvas.height !== h) {
+                    fCanvas.width = w;
+                    fCanvas.height = h;
+                    createTrees(w, h);
+                  }
+                }
+
+                function fAnimate(time) {
+                  fResize();
+                  fctx.clearRect(0, 0, fCanvas.width, fCanvas.height);
+                  for (const tree of fTrees) drawTree(tree, time);
+                  
+                  // Ground
+                  const groundY = fCanvas.height * 0.979;
+                  fctx.beginPath();
+                  fctx.moveTo(0, fCanvas.height);
+                  fctx.lineTo(0, groundY);
+                  for (let x = 0; x <= fCanvas.width; x += 90) {
+                    fctx.lineTo(x, groundY + Math.sin(x * 0.006 + time * 0.00008) * 1.8 + Math.sin(x * 0.017 + 1.7) * 1.1);
+                  }
+                  fctx.lineTo(fCanvas.width, fCanvas.height);
+                  fctx.fillStyle = "#0D0A20";
+                  fctx.fill();
+
+                  requestAnimationFrame(fAnimate);
+                }
+                requestAnimationFrame(fAnimate);
             }
             
             // Hills Layer (Layer 3)
