@@ -117,48 +117,12 @@
         <canvas id="sky-canvas" class="absolute inset-0 z-0 pointer-events-none"></canvas>
 
         <!-- Mountains (Layer 1) -->
-        <div class="parallax-layer absolute bottom-0 w-full h-[60vh] z-10" data-speed="0.1">
-            <svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="w-full h-full text-[#151230]">
-                <path d="M0,300 L0,200 L100,100 L250,180 L400,50 L600,190 L800,80 L1000,220 L1000,300 Z" fill="currentColor"/>
-                <path d="M0,300 L0,230 L150,150 L300,210 L500,120 L750,230 L900,150 L1000,250 L1000,300 Z" fill="#1A163B" opacity="0.7"/>
-            </svg>
-        </div>
+        <!-- Abstract Raymarch (Background) -->
+        <canvas id="abstract-canvas" class="absolute inset-0 z-0 mix-blend-screen opacity-30 pointer-events-none"></canvas>
 
-        <!-- Fireflies (Layer 2) -->
-        <div class="parallax-layer absolute bottom-0 w-full h-[40vh] z-20 pointer-events-none" data-speed="0.25">
+        <!-- Fireflies (Foreground) -->
+        <div class="absolute inset-0 z-20 pointer-events-none">
             <canvas id="fireflies-canvas" class="w-full h-full pointer-events-none"></canvas>
-        </div>
-
-        <!-- Big Window & Foreground (Layer 3) -->
-        <div class="parallax-layer absolute bottom-0 w-full h-[25vh] z-30" data-speed="0.4">
-            <svg id="foreground-svg" viewBox="0 0 1000 250" preserveAspectRatio="none" class="w-full h-full text-[#030509]">
-                <defs>
-                    <filter id="heavy-blur" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="6"/>
-                    </filter>
-                    <filter id="light-blur" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="3"/>
-                    </filter>
-                    <radialGradient id="fire-glow" cx="50%" cy="80%" r="60%">
-                        <stop offset="0%" stop-color="#ff4d00" />
-                        <stop offset="60%" stop-color="#aa2200" />
-                        <stop offset="100%" stop-color="#2a0800" />
-                    </radialGradient>
-                </defs>
-                
-                <!-- Foreground Hill Shape -->
-                <path d="M0,250 L0,150 Q300,50 600,180 T1000,100 L1000,250 Z" fill="currentColor"/>
-                
-                <!-- The Big Window -->
-                <g transform="translate(650, 60) scale(1.1)">
-                    <!-- Fireplace glow background -->
-                    <path d="M 0 120 L 0 40 A 40 40 0 0 1 80 40 L 80 120 Z" fill="url(#fire-glow)" filter="url(#heavy-blur)" class="fireplace-flicker"/>
-                    <!-- The dark frame silhouette -->
-                    <path d="M 0 120 L 0 40 A 40 40 0 0 1 80 40 L 80 120 Z" fill="none" stroke="#000" stroke-width="8" filter="url(#light-blur)"/>
-                    <line x1="40" y1="0" x2="40" y2="120" stroke="#000" stroke-width="6" filter="url(#light-blur)"/>
-                    <line x1="0" y1="60" x2="80" y2="60" stroke="#000" stroke-width="6" filter="url(#light-blur)"/>
-                </g>
-            </svg>
         </div>
     </div>
 
@@ -742,6 +706,103 @@ void main() {
                 requestAnimationFrame(renderAurora);
             };
             renderAurora();
+
+            // --- Abstract Raymarching Background ---
+            const abstractCanvas = document.getElementById('abstract-canvas');
+            if (abstractCanvas) {
+                const agl = abstractCanvas.getContext('webgl', { alpha: false, preserveDrawingBuffer: false });
+                if (agl) {
+                    const avsSource = `
+                        attribute vec4 aVertexPosition;
+                        void main() {
+                            gl_Position = aVertexPosition;
+                        }
+                    `;
+                    const afsSource = `
+                        precision mediump float;
+                        uniform vec2 u_resolution;
+                        uniform float u_time;
+
+                        void r(inout vec2 p, float a) {
+                            p = cos(a)*p + sin(a)*vec2(p.y, -p.x);
+                        }
+
+                        vec3 auroraColor(float i, float t) {
+                            vec3 base = vec3(0.04, 0.18, 0.25);
+                            vec3 highlight = vec3(0.43, 0.90, 0.71);
+                            return mix(base, highlight, sin(t * 0.4 + i * 8.0) * 0.5 + 0.5);
+                        }
+
+                        void main() {
+                            vec2 w = gl_FragCoord.xy;
+                            vec2 u = (-u_resolution.xy + 2.0 * w) / u_resolution.y;
+                            vec3 ro = vec3(u, 1.0);
+                            vec3 rd = normalize(vec3(u, -1.0));
+                            vec3 p;
+                            float d = 0.0, m;
+                            
+                            float PSD = pow(sin(u_time * 0.5) * 0.5 + 0.5, 2.0) * 0.25;
+                            vec4 c = vec4(0.0, 0.0, 0.0, 1.0);
+                            
+                            for (float i = 1.0; i > 0.0; i -= 0.02) {
+                                p = ro + rd * d;
+                                
+                                vec2 pzy = p.zy; r(pzy, u_time * 0.2); p.zy = pzy;
+                                vec2 pzx = p.zx; r(pzx, u_time * 0.15); p.zx = pzx;
+                                
+                                m = length(cos(abs(p) + sin(abs(p)) + u_time * 0.3)) - (PSD + 0.5);
+                                d += m;
+                                
+                                if (m < 0.02) {
+                                    c = vec4(auroraColor(i, u_time) * i * i, 1.0);
+                                    break;
+                                }
+                            }
+                            
+                            gl_FragColor = c;
+                        }
+                    `;
+                    
+                    const createShader = (type, src) => {
+                        const s = agl.createShader(type);
+                        agl.shaderSource(s, src);
+                        agl.compileShader(s);
+                        return s;
+                    };
+
+                    const aShaderProg = agl.createProgram();
+                    agl.attachShader(aShaderProg, createShader(agl.VERTEX_SHADER, avsSource));
+                    agl.attachShader(aShaderProg, createShader(agl.FRAGMENT_SHADER, afsSource));
+                    agl.linkProgram(aShaderProg);
+                    agl.useProgram(aShaderProg);
+                    
+                    const aPosBuffer = agl.createBuffer();
+                    agl.bindBuffer(agl.ARRAY_BUFFER, aPosBuffer);
+                    agl.bufferData(agl.ARRAY_BUFFER, new Float32Array([1,1, -1,1, 1,-1, -1,-1]), agl.STATIC_DRAW);
+                    const aPosAttr = agl.getAttribLocation(aShaderProg, "aVertexPosition");
+                    agl.enableVertexAttribArray(aPosAttr);
+                    agl.vertexAttribPointer(aPosAttr, 2, agl.FLOAT, false, 0, 0);
+                    
+                    const aTimeLoc = agl.getUniformLocation(aShaderProg, "u_time");
+                    const aResLoc = agl.getUniformLocation(aShaderProg, "u_resolution");
+                    
+                    const resizeAbstract = () => {
+                        abstractCanvas.width = window.innerWidth;
+                        abstractCanvas.height = window.innerHeight;
+                        agl.viewport(0, 0, abstractCanvas.width, abstractCanvas.height);
+                    };
+                    window.addEventListener('resize', resizeAbstract);
+                    resizeAbstract();
+                    
+                    const renderAbstract = () => {
+                        agl.uniform1f(aTimeLoc, (Date.now() - start) / 1000.0);
+                        agl.uniform2f(aResLoc, abstractCanvas.width, abstractCanvas.height);
+                        agl.drawArrays(agl.TRIANGLE_STRIP, 0, 4);
+                        requestAnimationFrame(renderAbstract);
+                    };
+                    renderAbstract();
+                }
+            }
         }
 
         // Stars & Constellations Canvas (Interactive)
