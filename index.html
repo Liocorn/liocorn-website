@@ -78,6 +78,18 @@
             transform: translateY(0) rotateX(0) scale(1);
         }
 
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-200px) rotateY(-10deg) scale(0.9);
+            transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform, opacity;
+        }
+        
+        .reveal-left.active {
+            opacity: 1;
+            transform: translateX(0) rotateY(0) scale(1);
+        }
+
         /* Delays for staggered reveals */
         .delay-100 { transition-delay: 100ms; }
         .delay-200 { transition-delay: 200ms; }
@@ -151,8 +163,8 @@
                 <p class="text-gray-400">Watch our tools transform the Unity editor experience.</p>
             </div>
             
-            <div class="bg-background rounded-xl p-2 border border-surface glow reveal delay-200 animate-float">
-                <div class="aspect-w-16 rounded-lg overflow-hidden relative">
+            <div class="bg-background rounded-xl p-2 border border-surface glow reveal-left delay-200 tilt-card max-w-3xl mx-auto">
+                <div class="tilt-card-content aspect-w-16 rounded-lg overflow-hidden relative">
                     <iframe 
                         src="https://www.youtube.com/embed/sATvnS09Rlo?autoplay=0&rel=0" 
                         title="Liocorn Trailer" 
@@ -417,13 +429,13 @@
         }
 
         // Intersection Observer for Scroll Reveals
-        const revealElements = document.querySelectorAll('.reveal');
+        const revealElements = document.querySelectorAll('.reveal, .reveal-left');
         const revealObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('active');
-                    // Optional: Unobserve after revealing
-                    // revealObserver.unobserve(entry.target); 
+                } else {
+                    entry.target.classList.remove('active');
                 }
             });
         }, {
