@@ -116,10 +116,9 @@
         <!-- Stars & Constellations Canvas -->
         <canvas id="sky-canvas" class="absolute inset-0 z-0 pointer-events-none"></canvas>
 
-        <!-- Mountains (Layer 1) -->
-        <!-- Abstract Raymarch (Background Bottom) -->
-        <div class="absolute bottom-0 w-full h-[50vh] z-0 mix-blend-screen opacity-60 pointer-events-none">
-            <canvas id="abstract-canvas" class="w-full h-full pointer-events-none"></canvas>
+        <!-- Forest Landscape (Layer 1) -->
+        <div class="absolute inset-0 w-full h-full z-10 pointer-events-none">
+            <canvas id="forest-canvas" class="w-full h-full pointer-events-none"></canvas>
         </div>
 
         <!-- Fireflies (Foreground) -->
@@ -709,10 +708,10 @@ void main() {
             };
             renderAurora();
 
-            // --- Abstract Raymarching Background ---
-            const abstractCanvas = document.getElementById('abstract-canvas');
-            if (abstractCanvas) {
-                const agl = abstractCanvas.getContext('webgl', { alpha: false, preserveDrawingBuffer: false });
+            // --- Forest Landscape ---
+            const forestCanvas = document.getElementById('forest-canvas');
+            if (forestCanvas) {
+                const agl = forestCanvas.getContext('webgl', { alpha: true, preserveDrawingBuffer: false, premultipliedAlpha: false });
                 if (agl) {
                     const avsSource = `
                         attribute vec4 aVertexPosition;
@@ -721,53 +720,122 @@ void main() {
                         }
                     `;
                     const afsSource = `
-                        precision mediump float;
+                        precision highp float;
                         uniform vec2 u_resolution;
                         uniform float u_time;
                         uniform vec2 u_mouse;
 
-                        void r(inout vec2 p, float a) {
-                            p = cos(a)*p + sin(a)*vec2(p.y, -p.x);
+                        #define PI 3.14159265359
+                        #define S(x,y,z) smoothstep(x,y,z)
+                        #define B(x,y,z,b) S(x, x+b, z)*S(y+b, y, z)
+                        #define saturate(x) clamp(x,0.,1.)
+                        #define MOD3 vec3(.1031,.11369,.13787)
+
+                        float hash11(float p) {
+                            vec3 p3  = fract(vec3(p) * MOD3);
+                            p3 += dot(p3, p3.yzx + 19.19);
+                            return fract((p3.x + p3.y) * p3.z);
                         }
 
-                        vec3 auroraColor(float i, float t) {
-                            vec3 base = vec3(0.04, 0.18, 0.25);
-                            vec3 highlight = vec3(0.43, 0.90, 0.71);
-                            return mix(base, highlight, sin(t * 0.4 + i * 8.0) * 0.5 + 0.5);
+                        float within(float a, float b, float t) {
+                            return (t-a) / (b-a); 
+                        }
+
+                        float skewbox(vec2 uv, vec3 top, vec3 bottom, float blur) {
+                            float y = within(top.z, bottom.z, uv.y);
+                            float left = mix(top.x, bottom.x, y);
+                            float right = mix(top.y, bottom.y, y);
+                            
+                            float horizontal = B(left, right, uv.x, blur);
+                            float vertical = B(bottom.z, top.z, uv.y, blur);
+                            return horizontal*vertical;
+                        }
+
+                        vec4 pine(vec2 uv, vec2 p, float s, float focus) {
+                            uv.x -= .5;
+                            float c = skewbox(uv, vec3(.0, .0, 1.), vec3(-.14, .14, .65), focus);
+                            c += skewbox(uv, vec3(-.10, .10, .65), vec3(-.18, .18, .43), focus);
+                            c += skewbox(uv, vec3(-.13, .13, .43), vec3(-.22, .22, .2), focus);
+                            c += skewbox(uv, vec3(-.04, .04, .2), vec3(-.04, .04, -.1), focus);
+                            
+                            vec4 col = vec4(1.,1.,1.,0.);
+                            col.a = c;
+                           
+                            float shadow = skewbox(uv.yx, vec3(.6, .65, .13), vec3(.65, .65, -.1), focus);
+                            shadow += skewbox(uv.yx, vec3(.43, .43, .13), vec3(.36, .43, -.2), focus);
+                            shadow += skewbox(uv.yx, vec3(.15, .2, .08), vec3(.17, .2, -.08), focus);
+                            
+                            col.rgb = mix(col.rgb, col.rgb*.8, shadow);
+                            
+                            return col;
+                        }
+
+                        float getheight(float x) {
+                            return sin(x) + sin(x*2.234+.123)*.5 + sin(x*4.45+2.2345)*.25;
+                        }
+
+                        vec4 landscape(vec2 uv, float d, float p, float f, float a, float y, float seed, float focus) {
+                            uv *= d;
+                            float x = uv.x*PI*f+p;
+                            float c = getheight(x)*a+y;
+                            
+                            float b = floor(x*5.)/5.+.1;
+                            float h =  getheight(b)*a+y;
+                            
+                            float e = 0.01 * d;
+                            
+                            vec4 col = vec4(S(c+e, c-e, uv.y));
+                            
+                            x *= 5.;
+                            float id = floor(x);
+                            float n = hash11(id+seed);
+                            
+                            x = fract(x);
+                            
+                            y = (uv.y - h)*mix(5., 3., n)*3.5;
+                            float treeHeight = (.07/d) * mix(1.3, .5, n);
+                            y = within(h, h+treeHeight, uv.y);
+                            x += (n-.5)*.6;
+                            vec4 pineCol = pine(vec2(x, y/d), vec2(0.), 1., focus+d*.1);
+                            col.rgb = mix(col.rgb, pineCol.rgb, pineCol.a);
+                            col.a = max(col.a, pineCol.a);
+                            
+                            return saturate(col);
                         }
 
                         void main() {
-                            vec2 w = gl_FragCoord.xy;
-                            vec2 u = (-u_resolution.xy + 2.0 * w) / u_resolution.y;
+                            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+                            float t = u_time*.05 + u_mouse.x;
+                             
+                            vec4 col = vec4(0.0);
                             
-                            // Interactive camera offset
-                            vec3 ro = vec3(u + u_mouse * 0.2, 1.0);
-                            vec3 rd = normalize(vec3(u, -1.0));
-                            vec3 p;
-                            float d = 0.0, m;
+                            float dist = 1.;
+                            float height = .55;
+                            float amplitude = .02;
                             
-                            float PSD = pow(sin(u_time * 0.5) * 0.5 + 0.5, 2.0) * 0.25;
-                            vec4 c = vec4(0.0, 0.0, 0.0, 1.0);
+                            vec4 trees = vec4(0.);
                             
-                            // WebGL1 requires integer loops with constant bounds
-                            for (int iter = 0; iter < 50; iter++) {
-                                float i = 1.0 - float(iter) * 0.02;
-                                p = ro + rd * d;
+                            for(int iter=0; iter<10; iter++) {
+                                float i = float(iter);
+                                vec4 layer = landscape(uv, dist, t+i, 3., amplitude, height, i, .01);
                                 
-                                // Interactive mouse rotation
-                                vec2 pzy = p.zy; r(pzy, u_time * 0.2 + u_mouse.y * 1.5); p.zy = pzy;
-                                vec2 pzx = p.zx; r(pzx, u_time * 0.15 - u_mouse.x * 1.5); p.zx = pzx;
+                                vec3 layerCol = mix(vec3(0.01, 0.05, 0.04), vec3(0.08, 0.28, 0.22), 1.0 - i/10.0);
+                                layer.rgb *= layerCol;
                                 
-                                m = length(cos(abs(p) + sin(abs(p)) + u_time * 0.3)) - (PSD + 0.5);
-                                d += m;
+                                trees = mix(trees, layer, layer.a);
                                 
-                                if (m < 0.02) {
-                                    c = vec4(auroraColor(i, u_time) * i * i, 1.0);
-                                    break;
-                                }
+                                dist -= .1;
+                                height -= .06;
                             }
                             
-                            gl_FragColor = c;
+                            col = trees;
+                            
+                            vec4 foreground = landscape(uv, .02, t, 3., .0, -0.04, 1., .1);
+                            foreground.rgb *= vec3(0.01, 0.02, 0.03);
+                            
+                            col = mix(col, foreground, foreground.a);
+                            
+                            gl_FragColor = col;
                         }
                     `;
                     
@@ -776,7 +844,7 @@ void main() {
                         agl.shaderSource(s, src);
                         agl.compileShader(s);
                         if (!agl.getShaderParameter(s, agl.COMPILE_STATUS)) {
-                            console.error("Abstract Shader Error: " + agl.getShaderInfoLog(s));
+                            console.error("Forest Shader Error: " + agl.getShaderInfoLog(s));
                         }
                         return s;
                     };
@@ -805,26 +873,33 @@ void main() {
                         targetMoY = -(e.clientY / window.innerHeight) * 2.0 + 1.0;
                     });
                     
-                    const resizeAbstract = () => {
-                        const rect = abstractCanvas.parentElement.getBoundingClientRect();
-                        abstractCanvas.width = rect.width;
-                        abstractCanvas.height = rect.height;
-                        agl.viewport(0, 0, abstractCanvas.width, abstractCanvas.height);
+                    const resizeForest = () => {
+                        const rect = forestCanvas.parentElement.getBoundingClientRect();
+                        forestCanvas.width = rect.width;
+                        forestCanvas.height = rect.height;
+                        agl.viewport(0, 0, forestCanvas.width, forestCanvas.height);
                     };
-                    window.addEventListener('resize', resizeAbstract);
-                    resizeAbstract();
+                    window.addEventListener('resize', resizeForest);
+                    resizeForest();
                     
-                    const renderAbstract = () => {
+                    const renderForest = () => {
                         moX += (targetMoX - moX) * 0.05;
                         moY += (targetMoY - moY) * 0.05;
                         
                         agl.uniform1f(aTimeLoc, (Date.now() - start) / 1000.0);
-                        agl.uniform2f(aResLoc, abstractCanvas.width, abstractCanvas.height);
+                        agl.uniform2f(aResLoc, forestCanvas.width, forestCanvas.height);
                         agl.uniform2f(aMouseLoc, moX, moY);
+                        
+                        agl.clearColor(0, 0, 0, 0);
+                        agl.clear(agl.COLOR_BUFFER_BIT);
+                        
+                        agl.enable(agl.BLEND);
+                        agl.blendFunc(agl.SRC_ALPHA, agl.ONE_MINUS_SRC_ALPHA);
+                        
                         agl.drawArrays(agl.TRIANGLE_STRIP, 0, 4);
-                        requestAnimationFrame(renderAbstract);
+                        requestAnimationFrame(renderForest);
                     };
-                    renderAbstract();
+                    renderForest();
                 }
             }
         }
