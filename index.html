@@ -116,10 +116,7 @@
         <!-- Stars & Constellations Canvas -->
         <canvas id="sky-canvas" class="absolute inset-0 z-0 pointer-events-none"></canvas>
 
-        <!-- Forest Landscape (Layer 1) -->
-        <div class="absolute inset-0 w-full h-full z-10 pointer-events-none">
-            <canvas id="forest-canvas" class="w-full h-full pointer-events-none"></canvas>
-        </div>
+
 
         <!-- Fireflies (Foreground) -->
         <div class="absolute inset-0 z-20 pointer-events-none">
@@ -268,6 +265,15 @@
             </div>
         </div>
     </section>
+    <!-- Forest Transition Landscape -->
+    <div class="relative w-full h-[50vh] z-10 overflow-hidden pointer-events-none mt-10">
+        <!-- Fade Top -->
+        <div class="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#16102b] to-transparent z-20 pointer-events-none"></div>
+        <!-- Fade Bottom -->
+        <div class="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#151b2b] to-transparent z-20 pointer-events-none"></div>
+        
+        <canvas id="forest-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+    </div>
 
     <!-- Creator Bio Section -->
     <section id="about" class="py-20 bg-surface/30 border-y border-surface relative z-10 perspective-container">
@@ -736,6 +742,12 @@ void main() {
                             p3 += dot(p3, p3.yzx + 19.19);
                             return fract((p3.x + p3.y) * p3.z);
                         }
+                        
+                        float hash12(vec2 p) {
+                            vec3 p3  = fract(vec3(p.xyx) * MOD3);
+                            p3 += dot(p3, p3.yzx + 19.19);
+                            return fract((p3.x + p3.y) * p3.z);
+                        }
 
                         float within(float a, float b, float t) {
                             return (t-a) / (b-a); 
@@ -782,7 +794,8 @@ void main() {
                             float b = floor(x*5.)/5.+.1;
                             float h =  getheight(b)*a+y;
                             
-                            float e = 0.01 * d;
+                            // Much sharper edge to remove outline
+                            float e = 0.002 * d; 
                             
                             vec4 col = vec4(S(c+e, c-e, uv.y));
                             
@@ -803,9 +816,30 @@ void main() {
                             return saturate(col);
                         }
 
+                        vec4 gradient(vec2 uv) {
+                            float c = 1.-length(vec2(1.3, .8)-uv)/1.4;
+                            return vec4(c);
+                        }
+                        
+                        float stars(vec2 uv, float t) {
+                            t*=3.;
+                            float n1 = hash12(uv*10000.);
+                            float n2 = hash12(uv*11234.);
+                            float alpha1 = pow(n1, 20.);
+                            float alpha2 = pow(n2, 20.);
+                            
+                            float twinkle = sin((uv.x-t+cos(uv.y*20.+t))*10.);
+                            twinkle *= cos((uv.y*.234-t*3.24+sin(uv.x*12.3+t*.243))*7.34);
+                            twinkle = (twinkle + 1.)/2.;
+                            return alpha1 * alpha2 * twinkle;
+                        }
+
                         void main() {
-                            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-                            float t = u_time*.05 + u_mouse.x;
+                            // Scale by u_resolution.y to maintain aspect ratio and prevent stretching!
+                            vec2 uv = gl_FragCoord.xy / u_resolution.y;
+                            
+                            // Slower, subtle mouse panning
+                            float t = u_time * 0.05 + u_mouse.x * 0.3;
                              
                             vec4 col = vec4(0.0);
                             
@@ -819,7 +853,14 @@ void main() {
                                 float i = float(iter);
                                 vec4 layer = landscape(uv, dist, t+i, 3., amplitude, height, i, .01);
                                 
-                                vec3 layerCol = mix(vec3(0.01, 0.05, 0.04), vec3(0.08, 0.28, 0.22), 1.0 - i/10.0);
+                                // Restore original silvery coloring
+                                vec3 origCol = mix(vec3(.1, .1, .2), vec3(.3)+gradient(uv).x, 1.-i/10.);
+                                
+                                // Occasionally dark green trees
+                                float isGreen = step(0.8, hash11(i * 13.37)); // 20% chance
+                                vec3 greenCol = mix(vec3(0.01, 0.15, 0.1), vec3(0.1, 0.3, 0.2), 1.-i/10.);
+                                
+                                vec3 layerCol = mix(origCol, greenCol, isGreen);
                                 layer.rgb *= layerCol;
                                 
                                 trees = mix(trees, layer, layer.a);
@@ -828,10 +869,16 @@ void main() {
                                 height -= .06;
                             }
                             
+                            // Cyan shimmering fireflies moving with trees
+                            float firefly = stars(uv * 1.5 - vec2(t * 0.2, 0.0), u_time * 0.1);
+                            vec3 fireflyCol = mix(vec3(0.0, 0.8, 1.0), vec3(0.2, 1.0, 0.8), hash11(uv.x)) * firefly * 2.0;
+                            trees.rgb += fireflyCol * trees.a; // Add on trees
+                            trees.rgb += fireflyCol * (1.0 - trees.a) * 0.5; // Add slightly behind trees
+                            
                             col = trees;
                             
                             vec4 foreground = landscape(uv, .02, t, 3., .0, -0.04, 1., .1);
-                            foreground.rgb *= vec3(0.01, 0.02, 0.03);
+                            foreground.rgb *= vec3(.1, .1, .2)*.5;
                             
                             col = mix(col, foreground, foreground.a);
                             
