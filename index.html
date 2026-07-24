@@ -806,7 +806,7 @@ void main() {
                             
                             x *= 5.;
                             float id = floor(x);
-                            float n = hash11(id+seed*13.37);
+                            float n = hash11(id+seed);
                             
                             x = fract(x);
                             
@@ -826,17 +826,20 @@ void main() {
                             return vec4(c);
                         }
                         
-                        float renderFireflies(vec2 uv, vec2 p, float d, float t, float seed) {
-                            // Scale uv based on depth: closer layers (smaller d) will have smaller coordinate space -> larger fireflies
-                            vec2 scaledUV = uv * d * 5.0; 
-                            scaledUV.x += p.x * 0.5; // pan with the forest
+                        float renderFireflies(vec2 uv, float p, float d, float t, float seed) {
+                            // Exact same x transformation as landscape so they perfectly move with the trees!
+                            uv *= d;
+                            float x = uv.x * PI * 3.0 + p;
+                            
+                            // Map into a grid for fireflies
+                            vec2 scaledUV = vec2(x * 1.5, uv.y * 10.0);
                             
                             vec2 gv = fract(scaledUV) - 0.5;
                             vec2 id = floor(scaledUV);
                             float n = hash12(id + seed * 7.31);
                             
                             // extremely sparse
-                            if (n > 0.03) return 0.0;
+                            if (n > 0.05) return 0.0;
                             
                             vec2 pos = vec2(hash11(n) - 0.5, hash11(n*13.0) - 0.5) * 0.5;
                             // Add subtle drifting and bobbing
@@ -847,21 +850,26 @@ void main() {
                             
                             // Proper firefly with bright core and soft halo in fog
                             float core = smoothstep(0.05, 0.0, dist);
-                            float halo = smoothstep(0.2, 0.05, dist) * 0.4;
+                            float halo = smoothstep(0.3, 0.05, dist) * 0.6;
                             
                             return (core + halo) * shimmer;
                         }
 
                         void main() {
-                            // Scale by u_resolution.y to maintain aspect ratio and prevent stretching!
-                            vec2 uv = gl_FragCoord.xy / u_resolution.y;
-                            // Slightly widen the view to fix busyness
-                            uv.x *= 0.7;
+                            // Revert to original shadertoy mapping to restore exact placement and texture feel
+                            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
                             
-                            // Slower, subtle mouse panning
-                            float t = u_time * 0.05 + u_mouse.x * 0.05;
+                            // Poetic, very slow panning speed
+                            float t = u_time * 0.02 + u_mouse.x * 0.02;
                              
                             vec4 col = vec4(0.0);
+                            
+                            // Background gradient haze at the top to brighten the sky and blend
+                            float hazeNoise = sin(uv.x * 5.0 + t) * cos(uv.x * 3.0 - t * 0.5) * 0.5 + 0.5;
+                            float hazeIntensity = smoothstep(0.2, 1.0, uv.y) * 0.6;
+                            vec3 hazeCol = mix(vec3(0.05, 0.1, 0.2), vec3(0.2, 0.4, 0.5), hazeNoise);
+                            col.rgb = hazeCol * hazeIntensity;
+                            col.a = hazeIntensity;
                             
                             float dist = 1.;
                             float height = .55;
@@ -869,8 +877,9 @@ void main() {
                             
                             vec4 trees = vec4(0.);
                             
-                            for(int iter=0; iter<10; iter++) {
-                                float i = float(iter);
+                            // Reduced number of layers (6 instead of 10) to make it less busy
+                            for(int iter=0; iter<6; iter++) {
+                                float i = float(iter) * 1.66; // Spread the layers out
                                 vec4 layer = landscape(uv, dist, t+i, 3., amplitude, height, i, .01);
                                 
                                 // Restore original silvery coloring
@@ -883,21 +892,22 @@ void main() {
                                 vec3 layerCol = mix(origCol, greenCol, isGreen);
                                 layer.rgb *= layerCol;
                                 
-                                // Render fireflies for this specific depth layer!
-                                float firefly = renderFireflies(uv, vec2(t + i, 0.0), dist, u_time * 0.5, i);
+                                // Render fireflies for this specific depth layer
+                                // They now use the exact same x-transformation as the trees, tracking perfectly!
+                                float firefly = renderFireflies(uv, t + i, dist, u_time * 0.5, i);
                                 vec3 fireflyCol = mix(vec3(0.0, 0.8, 1.0), vec3(0.2, 1.0, 0.8), hash11(i)) * firefly * 1.5;
                                 
                                 // Add fireflies into the empty space of this layer, and over the trees
                                 layer.rgb += fireflyCol;
-                                layer.a = max(layer.a, firefly * 0.8); // Ensure firefly glows in empty air
+                                layer.a = max(layer.a, firefly * 0.8);
                                 
                                 trees = mix(trees, layer, layer.a);
                                 
-                                dist -= .1;
-                                height -= .06;
+                                dist -= .15;
+                                height -= .09;
                             }
                             
-                            col = trees;
+                            col = mix(col, trees, trees.a);
                             
                             vec4 foreground = landscape(uv, .02, t, 3., .0, -0.04, 1., .1);
                             foreground.rgb *= vec3(.1, .1, .2)*.5;
@@ -905,7 +915,7 @@ void main() {
                             col = mix(col, foreground, foreground.a);
                             
                             // Top fog gradient transition
-                            float topFade = smoothstep(1.0, 0.4, gl_FragCoord.y / u_resolution.y);
+                            float topFade = smoothstep(1.0, 0.4, uv.y);
                             col.a *= topFade;
                             
                             gl_FragColor = col;
