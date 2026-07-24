@@ -806,7 +806,7 @@ void main() {
                             
                             x *= 5.;
                             float id = floor(x);
-                            float n = hash11(id+seed);
+                            float n = hash11(id+seed*13.37);
                             
                             x = fract(x);
                             
@@ -826,13 +826,17 @@ void main() {
                             return vec4(c);
                         }
                         
-                        float renderFireflies(vec2 uv, float t) {
-                            vec2 gv = fract(uv * 10.0) - 0.5;
-                            vec2 id = floor(uv * 10.0);
-                            float n = hash12(id);
+                        float renderFireflies(vec2 uv, vec2 p, float d, float t, float seed) {
+                            // Scale uv based on depth: closer layers (smaller d) will have smaller coordinate space -> larger fireflies
+                            vec2 scaledUV = uv * d * 5.0; 
+                            scaledUV.x += p.x * 0.5; // pan with the forest
                             
-                            // extremely sparse: only ~1-2% of cells
-                            if (n > 0.02) return 0.0;
+                            vec2 gv = fract(scaledUV) - 0.5;
+                            vec2 id = floor(scaledUV);
+                            float n = hash12(id + seed * 7.31);
+                            
+                            // extremely sparse
+                            if (n > 0.03) return 0.0;
                             
                             vec2 pos = vec2(hash11(n) - 0.5, hash11(n*13.0) - 0.5) * 0.5;
                             // Add subtle drifting and bobbing
@@ -840,16 +844,22 @@ void main() {
                             
                             float dist = length(gv - pos);
                             float shimmer = sin(t * 1.5 + n * 100.0) * 0.5 + 0.5;
-                            // Soft glowing circle, no pixelation
-                            return smoothstep(0.08, 0.0, dist) * shimmer;
+                            
+                            // Proper firefly with bright core and soft halo in fog
+                            float core = smoothstep(0.05, 0.0, dist);
+                            float halo = smoothstep(0.2, 0.05, dist) * 0.4;
+                            
+                            return (core + halo) * shimmer;
                         }
 
                         void main() {
                             // Scale by u_resolution.y to maintain aspect ratio and prevent stretching!
                             vec2 uv = gl_FragCoord.xy / u_resolution.y;
+                            // Slightly widen the view to fix busyness
+                            uv.x *= 0.7;
                             
                             // Slower, subtle mouse panning
-                            float t = u_time * 0.05 + u_mouse.x * 0.3;
+                            float t = u_time * 0.05 + u_mouse.x * 0.05;
                              
                             vec4 col = vec4(0.0);
                             
@@ -873,17 +883,19 @@ void main() {
                                 vec3 layerCol = mix(origCol, greenCol, isGreen);
                                 layer.rgb *= layerCol;
                                 
+                                // Render fireflies for this specific depth layer!
+                                float firefly = renderFireflies(uv, vec2(t + i, 0.0), dist, u_time * 0.5, i);
+                                vec3 fireflyCol = mix(vec3(0.0, 0.8, 1.0), vec3(0.2, 1.0, 0.8), hash11(i)) * firefly * 1.5;
+                                
+                                // Add fireflies into the empty space of this layer, and over the trees
+                                layer.rgb += fireflyCol;
+                                layer.a = max(layer.a, firefly * 0.8); // Ensure firefly glows in empty air
+                                
                                 trees = mix(trees, layer, layer.a);
                                 
                                 dist -= .1;
                                 height -= .06;
                             }
-                            
-                            // Cyan shimmering fireflies moving with trees
-                            float firefly = renderFireflies(uv * 2.0 - vec2(t * 0.2, 0.0), u_time * 0.5);
-                            vec3 fireflyCol = mix(vec3(0.0, 0.8, 1.0), vec3(0.2, 1.0, 0.8), hash11(uv.x)) * firefly * 3.0;
-                            trees.rgb += fireflyCol * trees.a; // Add on trees
-                            trees.rgb += fireflyCol * (1.0 - trees.a) * 0.5; // Add slightly behind trees
                             
                             col = trees;
                             
@@ -891,6 +903,10 @@ void main() {
                             foreground.rgb *= vec3(.1, .1, .2)*.5;
                             
                             col = mix(col, foreground, foreground.a);
+                            
+                            // Top fog gradient transition
+                            float topFade = smoothstep(1.0, 0.4, gl_FragCoord.y / u_resolution.y);
+                            col.a *= topFade;
                             
                             gl_FragColor = col;
                         }
