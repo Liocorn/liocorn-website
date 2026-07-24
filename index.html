@@ -833,26 +833,34 @@ void main() {
                             
                             // Map into a grid for fireflies
                             vec2 scaledUV = vec2(x * 1.5, uv.y * 10.0);
-                            
                             vec2 gv = fract(scaledUV) - 0.5;
                             vec2 id = floor(scaledUV);
-                            float n = hash12(id + seed * 7.31);
                             
-                            // extremely sparse
-                            if (n > 0.05) return 0.0;
-                            
-                            vec2 pos = vec2(hash11(n) - 0.5, hash11(n*13.0) - 0.5) * 0.5;
-                            // Add subtle drifting and bobbing
-                            pos += vec2(sin(t * 0.3 + n * 50.0), cos(t * 0.2 + n * 20.0)) * 0.3;
-                            
-                            float dist = length(gv - pos);
-                            float shimmer = sin(t * 1.5 + n * 100.0) * 0.5 + 0.5;
-                            
-                            // Proper firefly with bright core and soft halo in fog
-                            float core = smoothstep(0.05, 0.0, dist);
-                            float halo = smoothstep(0.3, 0.05, dist) * 0.6;
-                            
-                            return (core + halo) * shimmer;
+                            float total = 0.0;
+                            // 9-cell grid loop prevents halo cut-offs!
+                            for(float y=-1.0; y<=1.0; y++) {
+                                for(float x=-1.0; x<=1.0; x++) {
+                                    vec2 offset = vec2(x, y);
+                                    float n = hash12(id + offset + seed * 7.31);
+                                    
+                                    // extremely sparse
+                                    if (n > 0.05) continue;
+                                    
+                                    vec2 pos = offset + vec2(hash11(n) - 0.5, hash11(n*13.0) - 0.5) * 0.5;
+                                    // Add subtle drifting and bobbing
+                                    pos += vec2(sin(t * 0.3 + n * 50.0), cos(t * 0.2 + n * 20.0)) * 0.3;
+                                    
+                                    float dist = length(gv - pos);
+                                    float shimmer = sin(t * 1.5 + n * 100.0) * 0.5 + 0.5;
+                                    
+                                    // Proper firefly with bright core and soft halo in fog
+                                    float core = smoothstep(0.05, 0.0, dist);
+                                    float halo = smoothstep(0.3, 0.05, dist) * 0.6;
+                                    
+                                    total += (core + halo) * shimmer;
+                                }
+                            }
+                            return total;
                         }
 
                         void main() {
@@ -890,6 +898,17 @@ void main() {
                                 vec3 greenCol = mix(vec3(0.01, 0.15, 0.1), vec3(0.1, 0.3, 0.2), 1.-i/10.);
                                 
                                 vec3 layerCol = mix(origCol, greenCol, isGreen);
+                                
+                                // --- DEPTH & HEIGHT FOG ---
+                                // Dense at bottom (uv.y=0.0) and far away (dist=1.0)
+                                float depthFog = smoothstep(0.0, 1.2, dist);
+                                float heightFog = smoothstep(0.7, -0.1, uv.y);
+                                float fogAmount = depthFog * heightFog * 0.95; // Up to 95% fog intensity
+                                
+                                // Fog color: bright cyan/blue at bottom, blending to darker sky at top
+                                vec3 layerFogCol = mix(vec3(0.3, 0.45, 0.5), vec3(0.05, 0.1, 0.2), uv.y);
+                                
+                                layerCol = mix(layerCol, layerFogCol, fogAmount);
                                 layer.rgb *= layerCol;
                                 
                                 // Render fireflies for this specific depth layer
