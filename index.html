@@ -872,9 +872,22 @@ void main() {
                             float t = u_time * 0.02 + u_mouse.x * 0.02;
                             
                             vec3 mistCol = vec3(146.0/255.0, 166.0/255.0, 160.0/255.0); // #92a6a0
+                            vec3 skyCol = vec3(0.02, 0.06, 0.12); // Deep night sky
                             
-                            // The air itself is entirely filled with atmospheric mist!
-                            vec4 col = vec4(mistCol, 1.0);
+                            // Parallax moon position (moves slower than camera)
+                            vec2 moonUV = uv;
+                            moonUV.x += u_mouse.x * 0.01;
+                            vec2 moonPos = vec2(1.3, 0.65);
+                            float moonDist = length(moonUV - moonPos);
+                            
+                            // Moon glow (ambient mist illumination)
+                            vec3 bgCol = mix(skyCol, mistCol, smoothstep(1.5, 0.0, moonDist) * 0.7);
+                            
+                            // The Moon itself
+                            float moonCore = smoothstep(0.04, 0.035, moonDist);
+                            bgCol = mix(bgCol, vec3(0.9, 0.95, 1.0), moonCore);
+                            
+                            vec4 col = vec4(bgCol, 1.0);
                             
                             float dist = 1.;
                             float height = .55;
@@ -926,6 +939,20 @@ void main() {
                             foreground.rgb *= mix(vec3(.1, .1, .2)*.5, mistCol, 0.1); // Slight mist on foreground
                             
                             col = mix(col, foreground, foreground.a);
+                            
+                            // Volumetric God Rays (The Mist) casting over the forest
+                            vec2 delta = moonUV - moonPos;
+                            float angle = atan(delta.y, delta.x);
+                            
+                            float rays = sin(angle * 14.0 + u_time * 0.05) * 0.5 + 0.5;
+                            rays *= sin(angle * 8.0 - u_time * 0.02) * 0.5 + 0.5;
+                            rays *= sin(angle * 33.0 + u_time * 0.08) * 0.5 + 0.5;
+                            rays = pow(rays, 1.5);
+                            
+                            float rayMask = smoothstep(2.5, 0.1, moonDist);
+                            vec3 rayCol = mistCol * rays * rayMask * 0.8; // Beautiful mist rays
+                            
+                            col.rgb += rayCol;
                             
                             // Top fade transition to seamlessly blend into the #16102b background of the section above
                             float topFade = smoothstep(1.0, 0.4, uv.y);
