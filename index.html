@@ -864,18 +864,17 @@ void main() {
                         }
 
                         void main() {
-                            // Restore correct proportions (tall trees) and fix busyness
+                            // Restore exact proportions that were praised
                             vec2 uv = gl_FragCoord.xy / u_resolution.y;
-                            uv.x *= 0.6;
+                            uv.x *= 0.7;
                             
                             // Poetic, very slow panning speed
                             float t = u_time * 0.02 + u_mouse.x * 0.02;
                             
                             vec3 mistCol = vec3(146.0/255.0, 166.0/255.0, 160.0/255.0); // #92a6a0
                             
-                            // Background atmospheric mist (fills empty space between trees)
-                            float heightFog = smoothstep(0.8, -0.2, uv.y);
-                            vec4 col = vec4(mistCol * heightFog, heightFog * 0.9);
+                            // The air itself is entirely filled with atmospheric mist!
+                            vec4 col = vec4(mistCol, 1.0);
                             
                             float dist = 1.;
                             float height = .55;
@@ -897,12 +896,11 @@ void main() {
                                 
                                 vec3 layerCol = mix(origCol, greenCol, isGreen);
                                 
-                                // --- DEPTH & HEIGHT FOG ---
-                                // Dense at bottom (uv.y=0.0) and far away (dist=1.0)
-                                float depthFog = smoothstep(-0.2, 1.2, dist);
-                                float fogAmount = depthFog * heightFog; // Mist envelops far/low trees
+                                // --- DEPTH FOG (MIST IN THE AIR) ---
+                                // Far away trees (dist=1.0) are heavily swallowed by the mist!
+                                float depthFog = smoothstep(-0.1, 1.2, dist);
                                 
-                                layerCol = mix(layerCol, mistCol, fogAmount);
+                                layerCol = mix(layerCol, mistCol, depthFog);
                                 layer.rgb *= layerCol;
                                 
                                 // Render fireflies for this specific depth layer
@@ -910,7 +908,7 @@ void main() {
                                 float firefly = renderFireflies(uv, t + i, dist, u_time * 0.5, i);
                                 vec3 fireflyBaseCol = mix(vec3(0.0, 0.8, 1.0), vec3(0.2, 1.0, 0.8), hash11(i));
                                 // Fireflies also fade into the mist at a distance
-                                vec3 fireflyCol = mix(fireflyBaseCol, mistCol, fogAmount * 0.5) * firefly * 1.5;
+                                vec3 fireflyCol = mix(fireflyBaseCol, mistCol, depthFog * 0.8) * firefly * 1.5;
                                 
                                 // Add fireflies into the empty space of this layer, and over the trees
                                 layer.rgb += fireflyCol;
@@ -925,7 +923,7 @@ void main() {
                             col = mix(col, trees, trees.a);
                             
                             vec4 foreground = landscape(uv, .02, t, 3., .0, -0.04, 1., .1);
-                            foreground.rgb *= mix(vec3(.1, .1, .2)*.5, mistCol, smoothstep(0.5, 0.0, uv.y) * 0.3); // Slight fog on foreground
+                            foreground.rgb *= mix(vec3(.1, .1, .2)*.5, mistCol, 0.1); // Slight mist on foreground
                             
                             col = mix(col, foreground, foreground.a);
                             
